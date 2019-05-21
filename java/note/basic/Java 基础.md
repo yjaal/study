@@ -34,7 +34,8 @@
     * [OutOfMemoryError](#OutOfMemoryError)
 * [九、泛型](#九泛型)
 * [十、注解](#十注解)
-* [十一、特性](#十一特性)
+* [十一、创建对象的几种方式](#十一、创建对象的几种方式)
+* [十二、特性](#十二特性)
     * [Java 各版本的新特性](#java-各版本的新特性)
 * [参考资料](#参考资料)
   <!-- GFM-TOC -->
@@ -1313,17 +1314,78 @@ Throwable 可以用来表示任何可以作为异常抛出的类，分为两种�
 
 参考：`https://blog.csdn.net/zc375039901/article/details/79179465`
 
-栈溢出错误。如果一个线程在计算时所需要用到栈大小 大于 配置允许最大的栈大小，那么Java虚拟机将抛出StackOverflowError
+栈溢出错误。如果一个线程在计算时所需要用到栈大小 大于 配置允许最大的栈大小，那么`Java`虚拟机将抛出`StackOverflowError`
+
+**栈**
+
+![003](./assert/003.jpg)
+
+**栈的特点**
+也叫栈内存，是`java`虚拟机的内存模型之一，每当启动一个新线程时，`Java`虚拟机都会为它分配一个`Java`栈。虚拟机只会直接对`Java`栈执行两种操作，以帧为单位的压栈和出栈。
+
+* 栈存储的是什么
+    方法内的局部变量表、操作数栈、动态链接、方法出口信息、其他等信息
+* 栈栈的生命周期
+    是在线程创建时创建，线程结束而消亡，释放内存，由此可见栈内存是私有的。
+    栈内存是以栈帧(`Stack Frame`)为单位存储，栈帧是一个内存区块，是一个有关方法(`Method`)和运行期数据的数据集。
+    当一个方法`M1`被调用时就产生了一个栈帧`S1`，并被压入到栈中，`M1`方法又调用了`M2`方法，于是产生栈帧`S2`也被压入栈，`M2`方法执行完毕后，`S2`栈帧先出栈，`S1`栈帧再出栈，遵循“先进后出”原则。
+
+**栈帧**
+
+![004](./assert/004.jpg)
+
+1、局部变量表
+保存函数的参数以及局部变量用的，局部变量表中的变量只在当前函数调用中有效，当函数调用结束后，随着函数栈帧的销毁，局部变量表也会随之销毁。
+存放基本数据类型变量(`boolean、byte、char、short、int、float`)、引用类型的变量(`reference`)、`returnAddress`(指向一条字节码指令的地址)类型的变量。
+
+2、操作数栈
+主要用于保存计算过程的中间结果，同时作为计算过程中变量临时的存储空间。只支持出栈入栈操作。在概念模型中，两个栈帧是相互独立的。但是大多数虚拟机的实现都会进行优化，令两个栈帧出现一部分重叠。令下面的部分操作数栈与上面的局部变量表重叠在一块，这样在方法调用的时候可以共用一部分数据，无需进行额外的参数复制传递。
+
+3、动态链接
+每个栈帧都包含一个指向运行时常量池中该栈帧所属性方法的引用，持有这个引用是为了支持方法调用过程中的动态连接。在`Class`文件的常量池中存有大量的 符号引用，字节码中的方法调用指令就以常量池中指向方法的符号引用为参数。这些符号引用一部分会在类加载阶段或第一次使用的时候转化为直接引用，这种转化 称为静态解析。另外一部分将在每一次的运行期期间转化为直接引用，这部分称为动态连接。
+
+4、方法出口信息
+在方法退出之前，都需要返回到方法被调用的位置，程序才能继续执行，方法返回时可能需要在栈帧中保存一些信息，用来帮助恢复它的上 层方法的执行状态。一般来说，方法正常退出时，调用者`PC`计数器的值就可以作为返回地址，栈帧中很可能会保存这个计数器值。而方法异常退出时，返回地址是 要通过异常处理器来确定的，栈帧中一般不会保存这部分信息
+
+5、其他
+
+
+
+当一个方法被循环递归调用并且没有停止条件的时候就会出现此异常，因为每次都会产生一个新的栈帧区块，这时就会连续的产生新的栈帧区块，当栈内存超过系统配置的栈内存`-Xss:2048`，就会出现`java.lang.StackOverflowError`异常
+
+
+
+**解决**
+
+1、检查方法中是否有死循环
+
+2、通过设置参数`-Xss`来调整栈内存
 
 
 
 ## 8.2 OutOfMemoryError
 
+如果一个线程可以动态地扩展本机方法栈，并且尝试本地方法栈扩展(没有大于配置允许最大的栈大小)，但是内存不足可以提供， 或者如果不能提供足够的内存来为新线程创建初始的堆（如`new Object`），那么`Java`虚拟机将抛出`OutOfMemoryError`。
 
+```java
+public class Heap {
 
+    public static void main(String[] args) {
+        ArrayList list = new ArrayList();
+        while (true) {
+            list.add(new Heap());
+        }
+    }
+}
+```
 
+`List`是动态增长的，因此容量不够了，就会扩容，一旦空闲内存分配完毕，请求不到其他内存，就抛出`OutOfMemoryError`。
 
+**解决**
 
+1、检查方法中是否有死循环
+
+2、通过参数`-Xms3062m`和`-Xmx3062m`来调整堆内存大小
 
 # 九、泛型
 
@@ -1344,7 +1406,44 @@ Java 注解是附加在代码中的一些元信息，用于一些工具在编译
 
 
 
-# 十一、特性
+# 十一、创建对象的几种方式
+
+参考：`https://www.cnblogs.com/baizhanshi/p/5896092.html`
+
+1、使用`new`关键字
+
+2、使用`Class`类的`newInstance`方法：
+```java
+Student stu1 = (Student)Class.forName("win.iot4yj.Student").newInstance();　
+Student stu2 = Student.class.newInstance();
+```
+
+3、使用`Constructor`类的`newInstance`方法：
+本方法和`Class`类的`newInstance`方法很像，`java.lang.relect.Constructor`类里也有一个`newInstance`方法可以创建对象。
+
+```java
+//无参
+Student s1 = (Student) Student.class.getConstructor().newInstance();
+//有参
+Student s2 = (Student) Student.class.getConstructor(new Class[]{int.class,String.class}).newInstance();
+```
+这两种`newInstance`的方法就是大家所说的反射，事实上`Class`的`newInstance`方法内部调用`Constructor`的`newInstance`方法。这也是众多框架`Spring、Hibernate、Struts`等使用后者的原因。
+
+4、使用`Clone`的方法：无论何时我们调用一个对象的`clone`方法，`JVM`就会创建一个新的对象，将前面的对象的内容全部拷贝进去，用`clone`方法创建对象并不会调用任何构造函数。要使用`clone`方法，我们必须先实现`Cloneable`接口并实现其定义的`clone`方法。如：
+```java
+Student stu2 = <Student>stu.clone();
+```
+
+5、使用反序列化：当我们序列化和反序列化一个对象，`JVM`会给我们创建一个单独的对象，在反序列化时，`JVM`创建对象并不会调用任何构造函数。为了反序列化一个对象，我们需要让我们的类实现`Serializable`接口。如：
+
+```java
+ObjectInputStream in = new ObjectInputStream (new FileInputStream("data.obj")); 
+Student stu3 = (Student)in.readObject();
+```
+
+
+
+# 十二、特性
 
 ## Java 各版本的新特性
 
