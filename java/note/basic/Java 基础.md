@@ -30,14 +30,14 @@
     * [static](#static)
 * [七、反射](#七反射)
 * [八、异常](#八异常)
+    * [StackOverflowError](#StackOverflowError)
+    * [OutOfMemoryError](#OutOfMemoryError)
 * [九、泛型](#九泛型)
 * [十、注解](#十注解)
 * [十一、特性](#十一特性)
     * [Java 各版本的新特性](#java-各版本的新特性)
-    * [Java 与 C++ 的区别](#java-与-c-的区别)
-    * [JRE or JDK](#jre-or-jdk)
 * [参考资料](#参考资料)
-<!-- GFM-TOC -->
+  <!-- GFM-TOC -->
 
 
 # 一、数据类型
@@ -208,7 +208,7 @@ String 不可变性天生具备线程安全，可以在多个线程中安全地�
 - StringBuilder 不是线程安全的
 - StringBuffer 是线程安全的，内部使用 synchronized 进行同步
 
-[StackOverflow : String, StringBuffer, and StringBuilder](https://stackoverflow.com/questions/2971315/string-stringbuffer-and-stringbuilder)
+
 
 ## String Pool
 
@@ -237,8 +237,7 @@ System.out.println(s5 == s6);  // true
 
 在 Java 7 之前，String Pool 被放在运行时常量池中，它属于永久代。而在 Java 7，String Pool 被移到堆中。这是因为永久代的空间有限，在大量使用字符串的场景下会导致 OutOfMemoryError 错误。
 
-- [StackOverflow : What is String interning?](https://stackoverflow.com/questions/10578984/what-is-string-interning)
-- [深入解析 String#intern](https://tech.meituan.com/in_depth_understanding_string_intern.html)
+
 
 ## new String("abc")
 
@@ -360,7 +359,7 @@ class PassByValueExample {
 }
 ```
 
-[StackOverflow: Is Java “pass-by-reference” or “pass-by-value”?](https://stackoverflow.com/questions/40480/is-java-pass-by-reference-or-pass-by-value)
+
 
 ## float 与 double
 
@@ -400,7 +399,7 @@ s1 += 1;
 s1 = (short) (s1 + 1);
 ```
 
-[StackOverflow : Why don't Java's +=, -=, *=, /= compound assignment operators require casting?](https://stackoverflow.com/questions/8710619/why-dont-javas-compound-assignment-operators-require-casting)
+
 
 ## switch
 
@@ -432,7 +431,7 @@ switch 不支持 long，是因为 switch 的设计初衷是对那些只有少数
 // }
 ```
 
-[StackOverflow : Why can't your switch statement data type be long, Java?](https://stackoverflow.com/questions/2676210/why-cant-your-switch-statement-data-type-be-long-java)
+
 
 # 四、继承
 
@@ -601,8 +600,7 @@ System.out.println(InterfaceExample.x);
 
 在很多情况下，接口优先于抽象类。因为接口没有抽象类严格的类层次结构要求，可以灵活地为一个类添加行为。并且从 Java 8 开始，接口也可以有默认的方法实现，使得修改接口的成本也变的很低。
 
-- [深入理解 abstract class 和 interface](https://www.ibm.com/developerworks/cn/java/l-javainterface-abstract/)
-- [When to Use Abstract Class and Interface](https://dzone.com/articles/when-to-use-abstract-class-and-intreface)
+
 
 ## super
 
@@ -654,7 +652,7 @@ SuperExample.func()
 SuperExtendExample.func()
 ```
 
-[Using the Keyword super](https://docs.oracle.com/javase/tutorial/java/IandI/super.html)
+
 
 ## 重写与重载
 
@@ -1301,8 +1299,6 @@ Class 和 java.lang.reflect 一起对反射提供了支持，java.lang.reflect �
 *    **内部暴露**  ：由于反射允许代码执行一些在正常情况下不被允许的操作（比如访问私有的属性和方法），所以使用反射可能会导致意料之外的副作用，这可能导致代码功能失调并破坏可移植性。反射代码破坏了抽象性，因此当平台发生改变的时候，代码的行为就有可能也随着变化。
 
 
-- [Trail: The Reflection API](https://docs.oracle.com/javase/tutorial/reflect/index.html)
-- [深入解析 Java 反射（1）- 基础](http://www.sczyh30.com/posts/Java/java-reflection-1/)
 
 # 八、异常
 
@@ -1313,8 +1309,21 @@ Throwable 可以用来表示任何可以作为异常抛出的类，分为两种�
 
 ![002](./assert/002.png)
 
-- [Java 入门之异常处理](https://www.tianmaying.com/tutorial/Java-Exception)
-- [Java 异常的面试问题及答案 -Part 1](http://www.importnew.com/7383.html)
+## 8.1 StackOverflowError
+
+参考：`https://blog.csdn.net/zc375039901/article/details/79179465`
+
+栈溢出错误。如果一个线程在计算时所需要用到栈大小 大于 配置允许最大的栈大小，那么Java虚拟机将抛出StackOverflowError
+
+
+
+## 8.2 OutOfMemoryError
+
+
+
+
+
+
 
 # 九、泛型
 
@@ -1327,14 +1336,13 @@ public class Box<T> {
 }
 ```
 
-- [Java 泛型详解](http://www.importnew.com/24029.html)
-- [10 道 Java 泛型面试题](https://cloud.tencent.com/developer/article/1033693)
+
 
 # 十、注解
 
 Java 注解是附加在代码中的一些元信息，用于一些工具在编译、运行时进行解析和使用，起到说明、配置的功能。注解不会也不能影响代码的实际逻辑，仅仅起到辅助性的作用。
 
-[注解 Annotation 实现原理与自定义注解例子](https://www.cnblogs.com/acm-bingzi/p/javaAnnotation.html)
+
 
 # 十一、特性
 
