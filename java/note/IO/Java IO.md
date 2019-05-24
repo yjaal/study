@@ -27,16 +27,17 @@
     * [套接字 NIO 实例](#套接字-nio-实例)
     * [内存映射文件](#内存映射文件)
     * [对比](#对比)
-* [八、参考资料](#八参考资料)
-<!-- GFM-TOC -->
+
+
+    <!-- GFM-TOC -->
 
 
 # 一、概览
 
-Java 的 I/O 大概可以分成以下几类：
+`Java` 的` I/O `大概可以分成以下几类：
 
-- 磁盘操作：File
-- 字节操作：InputStream 和 OutputStream
+- 磁盘操作：`File`
+- 字节操作：`InputStream `和` OutputStream`
 - 字符操作：Reader 和 Writer
 - 对象操作：Serializable
 - 网络操作：Socket
@@ -44,7 +45,7 @@ Java 的 I/O 大概可以分成以下几类：
 
 # 二、磁盘操作
 
-File 类可以用于表示文件和目录的信息，但是它不表示文件的内容。
+`File` 类可以用于表示文件和目录的信息，但是它不表示文件的内容。
 
 递归地列出一个目录下所有文件：
 
@@ -63,7 +64,7 @@ public static void listAllFiles(File dir) {
 }
 ```
 
-从 Java7 开始，可以使用 Paths 和 Files 代替 File。
+从` Java7 `开始，可以使用 `Paths` 和 `Files `代替` File`。
 
 # 三、字节操作
 
@@ -605,22 +606,3 @@ NIO 与普通 I/O 的区别主要有以下两点：
 
 - NIO 是非阻塞的；
 - NIO 面向块，I/O 面向流。
-
-# 八、参考资料
-
-- Eckel B, 埃克尔, 昊鹏, 等. Java 编程思想 [M]. 机械工业出版社, 2002.
-- [IBM: NIO 入门](https://www.ibm.com/developerworks/cn/education/java/j-nio/j-nio.html)
-- [Java NIO Tutorial](http://tutorials.jenkov.com/java-nio/index.html)
-- [Java NIO 浅析](https://tech.meituan.com/nio.html)
-- [IBM: 深入分析 Java I/O 的工作机制](https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html)
-- [IBM: 深入分析 Java 中的中文编码问题](https://www.ibm.com/developerworks/cn/java/j-lo-chinesecoding/index.html)
-- [IBM: Java 序列化的高级认识](https://www.ibm.com/developerworks/cn/java/j-lo-serial/index.html)
-- [NIO 与传统 IO 的区别](http://blog.csdn.net/shimiso/article/details/24990499)
-- [Decorator Design Pattern](http://stg-tud.github.io/sedc/Lecture/ws13-14/5.3-Decorator.html#mode=document)
-- [Socket Multicast](http://labojava.blogspot.com/2012/12/socket-multicast.html)
-
-
-
-
-</br><div align="center">⭐️欢迎关注我的公众号 CyC2018，在公众号后台回复关键字 📚 **资料** 可领取复习大纲，这份大纲是我花了一整年时间整理的面试知识点列表，不仅系统整理了面试知识点，而且标注了各个知识点的重要程度，从而帮你理清多而杂的面试知识点。可以说我基本是按照这份大纲来进行复习的，这份大纲对我拿到了 BAT 头条等 Offer 起到很大的帮助。你们完全可以和我一样根据大纲上列的知识点来进行复习，就不用看很多不重要的内容，也可以知道哪些内容很重要从而多安排一些复习时间。</div></br>
-<div align="center"><img width="180px" src="https://cyc-1256109796.cos.ap-guangzhou.myqcloud.com/%E5%85%AC%E4%BC%97%E5%8F%B7.jpg"></img></div>

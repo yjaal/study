@@ -14,8 +14,8 @@
     * [ConcurrentHashMap](#concurrenthashmap)
     * [LinkedHashMap](#linkedhashmap)
     * [WeakHashMap](#weakhashmap)
-* [参考资料](#参考资料)
-<!-- GFM-TOC -->
+    * [TreeMap](#TreeMap)
+    * [同步集合](#同步集合)
 
 
 # 一、概览
@@ -279,6 +279,29 @@ ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file));
 oos.writeObject(list);
 ```
 
+
+
+### 相关接口说明
+
+`ArrayList`的定义为
+
+```java
+public class ArrayList<E> extends AbstractList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
+```
+
+可以看到继承了`RandomAccess, Cloneable, Serializable`接口，然后这些接口中是没有方法定义的。
+
+`RandomAccess`只是表示集合中元素可以支持快速（通常是固定时间）随机访问。
+
+`Serializable`，实现此接口表示启动其序列化功能，否则，此类无法序列化或反序列化。
+
+实现了`Cloneable`接口才能使用`Object.clone()`方法合法的对此类进行按字段复制，否则报`CloneNotSupportException`异常
+
+
+
+
+
 ## Vector
 
 ### 1. 同步
@@ -327,11 +350,17 @@ List<String> list = new CopyOnWriteArrayList<>();
 
 写操作在一个复制的数组上进行，读操作还是在原始数组中进行，读写分离，互不影响。
 
-写操作需要加锁，防止并发写入时导致写入数据丢失。
+写操作需要加锁（`ReentrantLock`），防止并发写入时导致写入数据丢失。
 
 写操作结束之后需要把原始数组指向新的复制数组。
 
 ```java
+/** The lock protecting all mutators */
+final transient ReentrantLock lock = new ReentrantLock();
+
+/** The array, accessed only via getArray/setArray. */
+private transient volatile Object[] array;
+
 public boolean add(E e) {
     final ReentrantLock lock = this.lock;
     lock.lock();
@@ -359,16 +388,28 @@ private E get(Object[] a, int index) {
 }
 ```
 
-### 适用场景
 
-CopyOnWriteArrayList 在写操作的同时允许读操作，大大提高了读操作的性能，因此很适合读多写少的应用场景。
+### 缺点
 
-但是 CopyOnWriteArrayList 有其缺陷：
+1、耗内存（集合复制）
+2、实时性不高
 
-- 内存占用：在写操作时需要复制一个新的数组，使得内存占用为原来的两倍左右；
-- 数据不一致：读操作不能读取实时性的数据，因为部分写操作的数据还未同步到读数组中。
+### 优点
 
-所以 CopyOnWriteArrayList 不适合内存敏感以及对实时性要求很高的场景。
+1、数据一致性完整，为什么？因为加锁了，并发数据不会乱
+2、解决了像`ArrayList、Vector`这种集合多线程遍历迭代问题，记住，同步集合虽然线程安全，只不过是加了`synchronized`关键字，迭代问题完全没有解决！
+
+### 使用场景
+
+1、读多写少（白名单，黑名单，商品类目的访问和更新场景），为什么？因为写的时候会复制新集合
+2、集合不大，为什么？因为写的时候会复制新集合
+实时性要求不高，为什么，因为有可能会读取到旧的集合数据
+
+
+
+`CopyOnWriteArraySet`内部其实也是使用`CopyOnWriteArrayList`实现的，这里不细说。
+
+
 
 ## LinkedList
 
@@ -401,7 +442,9 @@ transient Node<E> last;
 
 ## HashMap
 
-为了便于理解，以下源码分析以 JDK 1.7 为主。
+对于`jdk8`的内容，参考：[HashMap源码分析(jdk8)](./HashMap源码分析(jdk8).md)
+
+为了便于理解，以下源码分析以` JDK 1.7` 为主。
 
 ### 1. 存储结构
 
@@ -910,6 +953,8 @@ JDK 1.8 使用了 CAS 操作来支持更高的并发度，在 CAS 操作失败�
 
 ## LinkedHashMap
 
+更为详细的分析参考：[LinkedHashMap 源码详细分析(jdk8)](./LinkedHashMap 源码详细分析(jdk8).md)
+
 ### 存储结构
 
 继承自 HashMap，因此具有和 HashMap 一样的快速查找特性。
@@ -1097,23 +1142,12 @@ public final class ConcurrentCache<K, V> {
 ```
 
 
-# 参考资料
 
-- Eckel B. Java 编程思想 [M]. 机械工业出版社, 2002.
-- [Java Collection Framework](https://www.w3resource.com/java-tutorial/java-collections.php)
-- [Iterator 模式](https://openhome.cc/Gossip/DesignPattern/IteratorPattern.htm)
-- [Java 8 系列之重新认识 HashMap](https://tech.meituan.com/java_hashmap.html)
-- [What is difference between HashMap and Hashtable in Java?](http://javarevisited.blogspot.hk/2010/10/difference-between-hashmap-and.html)
-- [Java 集合之 HashMap](http://www.zhangchangle.com/2018/02/07/Java%E9%9B%86%E5%90%88%E4%B9%8BHashMap/)
-- [The principle of ConcurrentHashMap analysis](http://www.programering.com/a/MDO3QDNwATM.html)
-- [探索 ConcurrentHashMap 高并发性的实现机制](https://www.ibm.com/developerworks/cn/java/java-lo-concurrenthashmap/)
-- [HashMap 相关面试题及其解答](https://www.jianshu.com/p/75adf47958a7)
-- [Java 集合细节（二）：asList 的缺陷](http://wiki.jikexueyuan.com/project/java-enhancement/java-thirtysix.html)
-- [Java Collection Framework – The LinkedList Class](http://javaconceptoftheday.com/java-collection-framework-linkedlist-class/)
+## TreeMap
 
+参考：[TreeMap源码分析(jdk8)](./TreeMap源码分析(jdk8).md)
 
+## 同步集合
 
+参考：[同步集合](./同步集合)
 
-
-</br><div align="center">⭐️欢迎关注我的公众号 CyC2018，在公众号后台回复关键字 📚 **资料** 可领取复习大纲，这份大纲是我花了一整年时间整理的面试知识点列表，不仅系统整理了面试知识点，而且标注了各个知识点的重要程度，从而帮你理清多而杂的面试知识点。可以说我基本是按照这份大纲来进行复习的，这份大纲对我拿到了 BAT 头条等 Offer 起到很大的帮助。你们完全可以和我一样根据大纲上列的知识点来进行复习，就不用看很多不重要的内容，也可以知道哪些内容很重要从而多安排一些复习时间。</div></br>
-<div align="center"><img width="180px" src="https://cyc-1256109796.cos.ap-guangzhou.myqcloud.com/%E5%85%AC%E4%BC%97%E5%8F%B7.jpg"></img></div>
