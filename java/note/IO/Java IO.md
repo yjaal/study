@@ -1,4 +1,5 @@
 <!-- GFM-TOC -->
+
 * [一、概览](#一概览)
 * [二、磁盘操作](#二磁盘操作)
 * [三、字节操作](#三字节操作)
@@ -28,8 +29,7 @@
     * [内存映射文件](#内存映射文件)
     * [对比](#对比)
 
-
-    <!-- GFM-TOC -->
+<!-- GFM-TOC -->
 
 
 # 一、概览
@@ -38,10 +38,10 @@
 
 - 磁盘操作：`File`
 - 字节操作：`InputStream `和` OutputStream`
-- 字符操作：Reader 和 Writer
-- 对象操作：Serializable
-- 网络操作：Socket
-- 新的输入/输出：NIO
+- 字符操作：`Reader `和` Writer`
+- 对象操作：`Serializable`
+- 网络操作：`Socket`
+- 新的输入/输出：`NIO`
 
 # 二、磁盘操作
 
@@ -92,22 +92,22 @@ public static void copyFile(String src, String dist) throws IOException {
 
 ## 装饰者模式
 
-Java I/O 使用了装饰者模式来实现。以 InputStream 为例，
+`Java I/O` 使用了装饰者模式来实现。以` InputStream `为例，
 
-- InputStream 是抽象组件；
-- FileInputStream 是 InputStream 的子类，属于具体组件，提供了字节流的输入操作；
-- FilterInputStream 属于抽象装饰者，装饰者用于装饰组件，为组件提供额外的功能。例如 BufferedInputStream 为 FileInputStream 提供缓存的功能。
+- `InputStream `是抽象组件；
+- `FileInputStream` 是` InputStream `的子类，属于具体组件，提供了字节流的输入操作；
+- `FilterInputStream `属于抽象装饰者，装饰者用于装饰组件，为组件提供额外的功能。例如 `BufferedInputStream` 为 `FileInputStream` 提供缓存的功能。
 
 <div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/c2c2b633-c03a-426e-b436-5719a194667b.png"/> </div><br>
 
-实例化一个具有缓存功能的字节流对象时，只需要在 FileInputStream 对象上再套一层 BufferedInputStream 对象即可。
+实例化一个具有缓存功能的字节流对象时，只需要在 `FileInputStream `对象上再套一层 `BufferedInputStream `对象即可。
 
 ```java
 FileInputStream fileInputStream = new FileInputStream(filePath);
 BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
 ```
 
-DataInputStream 装饰者提供了对更多数据类型进行输入的操作，比如 int、double 等基本类型。
+`DataInputStream `装饰者提供了对更多数据类型进行输入的操作，比如 `int、double `等基本类型。
 
 # 四、字符操作
 
@@ -117,11 +117,11 @@ DataInputStream 装饰者提供了对更多数据类型进行输入的操作，�
 
 如果编码和解码过程使用不同的编码方式那么就出现了乱码。
 
-- GBK 编码中，中文字符占 2 个字节，英文字符占 1 个字节；
-- UTF-8 编码中，中文字符占 3 个字节，英文字符占 1 个字节；
-- UTF-16be 编码中，中文字符和英文字符都占 2 个字节。
+- `GBK` 编码中，中文字符占 2 个字节，英文字符占 1 个字节；
+- `UTF-8` 编码中，中文字符占 3 个字节，英文字符占 1 个字节；
+- `UTF-16be `编码中，中文字符和英文字符都占 2 个字节。
 
-UTF-16be 中的 be 指的是 Big Endian，也就是大端。相应地也有 UTF-16le，le 指的是 Little Endian，也就是小端。
+`UTF-16be `中的` be `指的是` Big Endian`，也就是大端。相应地也有` UTF-16le`，`le `指的是 `Little Endian`，也就是小端。
 
 Java 的内存编码使用双字节编码 UTF-16be，这不是指 Java 只支持这一种编码方式，而是说 char 这种类型使用 UTF-16be 进行编码。char 类型占 16 位，也就是两个字节，Java 使用这种双字节编码是为了让一个中文或者一个英文都能使用一个 char 来存储。
 
