@@ -24,7 +24,7 @@
 
 ## Collection
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/6_2001550476096035.png"/> </div><br>
+![1](./assert/1.png)
 
 
 ### 1. Set
@@ -51,7 +51,7 @@
 
 ## Map
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/2_2001550426232419.png"/> </div><br>
+![2](./assert/2.png)
 
 - TreeMap：基于红黑树实现。
 
@@ -66,7 +66,7 @@
 
 ## 迭代器模式
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/91aa7c29-438f-4fcc-8c63-2a75899139de.png"/> </div><br>
+![3](./assert/3.png)
 
 Collection 继承了 Iterable 接口，其中的 iterator() 方法能够产生一个 Iterator 对象，通过这个对象就可以迭代遍历 Collection 中的元素。
 
@@ -127,7 +127,7 @@ public class ArrayList<E> extends AbstractList<E>
 private static final int DEFAULT_CAPACITY = 10;
 ```
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/7935be3d-c2b3-4213-90c9-1e68ec4ac4e7.png"/> </div><br>
+![4](./assert/4.png)
 
 
 ### 2. 扩容
@@ -300,8 +300,6 @@ public class ArrayList<E> extends AbstractList<E>
 
 
 
-
-
 ## Vector
 
 ### 1. 同步
@@ -405,8 +403,6 @@ private E get(Object[] a, int index) {
 2、集合不大，为什么？因为写的时候会复制新集合
 实时性要求不高，为什么，因为有可能会读取到旧的集合数据
 
-
-
 `CopyOnWriteArraySet`内部其实也是使用`CopyOnWriteArrayList`实现的，这里不细说。
 
 
@@ -432,7 +428,7 @@ transient Node<E> first;
 transient Node<E> last;
 ```
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/09184175-9bf2-40ff-8a68-3b467c77216a.png"/> </div><br>
+![5](./assert/5.png)
 
 ### 2. 与 ArrayList 的比较
 
@@ -456,7 +452,7 @@ transient Entry[] table;
 
 Entry 存储着键值对。它包含了四个字段，从 next 字段我们可以看出 Entry 是一个链表。即数组中的每个位置被当成一个桶，一个桶存放一个链表。HashMap 使用拉链法来解决冲突，同一个链表中存放哈希值相同的 Entry。
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/1d2719d5-8d60-4c9b-a4ad-b2df7c7615af.jpg"/> </div><br>
+![6](./assert/6.jpg)
 
 ```java
 static class Entry<K,V> implements Map.Entry<K,V> {
@@ -532,7 +528,7 @@ map.put("K3", "V3");
 - 计算键值对所在的桶；
 - 在链表上顺序查找，时间复杂度显然和链表的长度成正比。
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/cf779e26-0382-4495-8463-f1e19e2e38a0.jpg"/> </div><br>
+![7](./assert/7.jpg)
 
 ### 3. put 操作
 
@@ -868,7 +864,7 @@ final Segment<K,V>[] segments;
 static final int DEFAULT_CONCURRENCY_LEVEL = 16;
 ```
 
-<div align="center"> <img src="https://gitee.com/CyC2018/CS-Notes/raw/master/docs/pics/deb18bdb-b3b3-4660-b778-b0823a48db12.jpg"/> </div><br>
+![8](./assert/8.jpg)
 
 ### 2. size 操作
 
