@@ -43,6 +43,16 @@
 - 网络操作：`Socket`
 - 新的输入/输出：`NIO`
 
+
+
+相关`IO`区别：
+
+* `BIO （Blocking I/O）`：同步阻塞I/O模式，数据的读取写入必须阻塞在一个线程内等待其完成。这里使用那个经典的烧开水例子，这里假设一个烧开水的场景，有一排水壶在烧开水，`BIO`的工作模式就是， 叫一个线程停留在一个水壶那，直到这个水壶烧开，才去处理下一个水壶。但是实际上线程在等待水壶烧开的时间段什么都没有做。
+
+* `NIO （New I/O）`：同时支持阻塞与非阻塞模式，但这里我们以其同步非阻塞I/O模式来说明，那么什么叫做同步非阻塞？如果还拿烧开水来说，`NIO`的做法是叫一个线程不断的轮询每个水壶的状态，看看是否有水壶的状态发生了改变，从而进行下一步的操作。
+
+* `AIO （ Asynchronous I/O）`：异步非阻塞I/O模型。异步非阻塞与同步非阻塞的区别在哪里？异步非阻塞无需一个线程去轮询所有IO操作的状态改变，在相应的状态改变后，系统会通知对应的线程来处理。对应到烧开水中就是，为每个水壶上面装了一个开关，水烧开之后，水壶会自动通知我水烧开了。
+
 # 二、磁盘操作
 
 `File` 类可以用于表示文件和目录的信息，但是它不表示文件的内容。
@@ -74,17 +84,14 @@ public static void listAllFiles(File dir) {
 public static void copyFile(String src, String dist) throws IOException {
     FileInputStream in = new FileInputStream(src);
     FileOutputStream out = new FileOutputStream(dist);
-
     byte[] buffer = new byte[20 * 1024];
     int cnt;
-
     // read() 最多读取 buffer.length 个字节
     // 返回的是实际读取的个数
     // 返回 -1 的时候表示读到 eof，即文件尾
     while ((cnt = in.read(buffer, 0, buffer.length)) != -1) {
         out.write(buffer, 0, cnt);
     }
-
     in.close();
     out.close();
 }
@@ -153,15 +160,12 @@ byte[] bytes = str1.getBytes();
 
 ```java
 public static void readFileContent(String filePath) throws IOException {
-
     FileReader fileReader = new FileReader(filePath);
     BufferedReader bufferedReader = new BufferedReader(fileReader);
-
     String line;
     while ((line = bufferedReader.readLine()) != null) {
         System.out.println(line);
     }
-
     // 装饰者模式使得 BufferedReader 组合了一个 Reader 对象
     // 在调用 BufferedReader 的 close() 方法时会去调用 Reader 的 close() 方法
     // 因此只要一个 close() 调用即可
@@ -251,23 +255,17 @@ InetAddress.getByAddress(byte[] address);
 
 ```java
 public static void main(String[] args) throws IOException {
-
     URL url = new URL("http://www.baidu.com");
-
     /* 字节流 */
     InputStream is = url.openStream();
-
     /* 字符流 */
     InputStreamReader isr = new InputStreamReader(is, "utf-8");
-
     /* 提供缓存功能 */
     BufferedReader br = new BufferedReader(isr);
-
     String line;
     while ((line = br.readLine()) != null) {
         System.out.println(line);
     }
-
     br.close();
 }
 ```
@@ -297,22 +295,173 @@ I/O 与 NIO 最重要的区别是数据打包和传输的方式，I/O 以流的�
 
 面向块的 I/O 一次处理一个数据块，按块处理数据比按流处理数据要快得多。但是面向块的 I/O 缺少一些面向流的 I/O 所具有的优雅性和简单性。
 
-I/O 包和 NIO 已经很好地集成了，java.io.\* 已经以 NIO 为基础重新实现了，所以现在它可以利用 NIO 的一些特性。例如，java.io.\* 包中的一些类包含以块的形式读写数据的方法，这使得即使在面向流的系统中，处理速度也会更快。
+I/O 包和 NIO 已经很好地集成了，java.nio.\* 已经以 NIO 为基础重新实现了，所以现在它可以利用 NIO 的一些特性。例如，java.nio.\* 包中的一些类包含以块的形式读写数据的方法，这使得即使在面向流的系统中，处理速度也会更快。
 
 ## 通道与缓冲区
 
 ### 1. 通道
 
-通道 Channel 是对原 I/O 包中的流的模拟，可以通过它读取和写入数据。
+* 用于源节点与目标节点的连接，在Java NIO中，负责缓冲区中数据的传输。其本身不存储任何数据，需要配合缓冲区进行传输
 
-通道与流的不同之处在于，流只能在一个方向上移动(一个流必须是 InputStream 或者 OutputStream 的子类)，而通道是双向的，可以用于读、写或者同时用于读写。
+* 通道的主要实现类
+    java.nio.channels.Channel接口：
+    FileChannel（用于本地）
+    SocketChannel（用于网络TCP）
+    ServerSocketChannel（用于网络TCP）
+    DatagramChannel（用于网络UDP）
 
-通道包括以下类型：
+* 获取通道
+    1、java针对支持通道的类提供了getChannel方法
+    本地IO：
+    FileInputStream/FileOutputStream
+    RandomAccessFile
+    网络IO：
+    Socket
+    ServerSocket
+    DatagramSocket
+    2、在JDK1.7中的NIO2针对各个通道提供了静态方法open()方法
+    3、在JDK1.7中的NIO2的Files工具类的newByteChannel()方法
 
-- FileChannel：从文件中读写数据；
-- DatagramChannel：通过 UDP 读写网络中数据；
-- SocketChannel：通过 TCP 读写网络中数据；
-- ServerSocketChannel：可以监听新进来的 TCP 连接，对每一个新进来的连接都会创建一个 SocketChannel。
+* 通道之间的数据传输
+    transferFrom()、transferTo()
+
+    ```java
+    /**
+     * 使用channel完成一个文件的复制，这是一种最简单的复制方式
+     */
+    public void test1() {
+    	FileChannel inChannel = null;
+    	FileChannel outChannel = null;
+    	try {
+    		inChannel = new FileInputStream("D:\\1.txt").getChannel();
+    		outChannel = new FileOutputStream("D:\\2.txt").getChannel();
+    		ByteBuffer buffer = ByteBuffer.allocate(1024);
+    		while (inChannel.read(buffer) != -1) {
+    			buffer.flip();
+    			outChannel.write(buffer);
+    			buffer.clear();
+    		}
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    	} finally {
+    		try {
+    			if (inChannel != null) {
+    				inChannel.close();
+    			}
+    		} catch (IOException e) {
+    			e.printStackTrace();
+    		}
+    		try {
+    			if (outChannel != null) {
+    				outChannel.close();
+    			}
+    		} catch (IOException e) {
+    			e.printStackTrace();
+    		}
+    	}
+    }
+    
+    /**
+     * 使用内存映射进行文件复制
+     */
+    public void test2() throws IOException {
+    	Instant start = Instant.now();
+    	//后一个参数规定文件的读写权限
+    	FileChannel inChannel = FileChannel.open(Paths.get("D:\\1.txt"), StandardOpenOption.READ);
+    	//CREATE_NEW表示一定要新创建，而CREATE表示没有才创建
+    	FileChannel outChannel = FileChannel.open(Paths.get("D:\\2.txt"), StandardOpenOption.WRITE,
+    			StandardOpenOption.READ, StandardOpenOption.CREATE);
+    
+    	//这是一个内存映射，和ByteBuffer.allocateDirect(1024)是一样的道理
+    	//内存映射只有ByteBuffer支持
+    	MappedByteBuffer inMappedByteBuffer = inChannel.map(FileChannel.MapMode.READ_ONLY, 0, inChannel.size());
+    	//因为这里是读写模式，所以上面的outChannel也必须要有读模式
+    	MappedByteBuffer outMappedByteBuffer = outChannel.map(FileChannel.MapMode.READ_WRITE, 0, inChannel.size());
+    
+    	byte[] bytes = new byte[inMappedByteBuffer.limit()];
+    	inMappedByteBuffer.get(bytes);
+    	outMappedByteBuffer.put(bytes);
+    
+    	inChannel.close();
+    	outChannel.close();
+    	Instant end = Instant.now();
+    	System.out.println("耗时： " + Duration.between(start, end));
+    }
+    
+    /**
+     * 通道之间直接传输
+     */
+    public void test3() throws IOException {
+    	FileChannel inChannel = FileChannel.open(Paths.get("D:\\1.txt"), StandardOpenOption.READ);
+    	FileChannel outChannel = FileChannel.open(Paths.get("D:\\2.txt"), StandardOpenOption.WRITE,
+    			StandardOpenOption.READ, StandardOpenOption.CREATE);
+    
+    	//	inChannel.transferTo(0, inChannel.size(), outChannel);
+    	//和上面一样
+    	outChannel.transferFrom(inChannel, 0, inChannel.size());
+    
+    	inChannel.close();
+    	outChannel.close();
+    }
+    ```
+
+    
+
+* 分散（Scatter）与聚集（Gather）
+    分散读取（Scattering Reads）：将一个通道中的数据分散到多个缓冲区中去
+    聚集写入（Gathering Writes）：将多个缓冲区中的数据聚集到一个通道中
+
+    ```java
+    //分散读取
+    public void test4() throws IOException {
+    	RandomAccessFile in = new RandomAccessFile("D:\\1.txt", "rw");
+    	ByteBuffer[] buffers = new ByteBuffer[]{ByteBuffer.allocate(500), ByteBuffer.allocate(1024)};
+    	FileChannel inChannel = in.getChannel();
+    	inChannel.read(buffers);
+    	for (ByteBuffer buf : buffers) {
+    		buf.flip();
+    	}
+    	RandomAccessFile out = new RandomAccessFile("D:\\2.txt", "rw");
+    	FileChannel outChannel = out.getChannel();
+    	outChannel.write(buffers);
+    	
+    	inChannel.close();
+    	outChannel.close();
+    	in.close();
+    	out.close();
+    }
+    ```
+
+    
+
+* 字符集：`CharSet`
+    编码：字符串-->字节数组
+    解码：字节数组-->字符串
+
+    ```java
+    public void test5() throws CharacterCodingException {
+    	Charset cst = Charset.forName("GBK");
+    	CharsetEncoder encode = cst.newEncoder();
+    	CharsetDecoder decode = cst.newDecoder();
+    
+    	CharBuffer buffer = CharBuffer.allocate(1024);
+    	buffer.put("狗蛋");
+    	buffer.flip();
+    	//编码
+    	ByteBuffer byteBuffer = encode.encode(buffer);
+    	for (int i = 0; i < byteBuffer.limit(); i++) {
+    		System.out.println(byteBuffer.get());
+    	}
+    
+    	byteBuffer.flip();
+    	CharBuffer charBuffer = decode.decode(byteBuffer);
+    	System.out.println(charBuffer.toString());
+    }
+    ```
+
+    
+
+
 
 ### 2. 缓冲区
 
@@ -330,11 +479,17 @@ I/O 包和 NIO 已经很好地集成了，java.io.\* 已经以 NIO 为基础重�
 - FloatBuffer
 - DoubleBuffer
 
+**直接缓冲区与非直接缓冲区** 
+
+* 非直接缓冲区：通过allocate方法分配缓冲区，将缓冲区建立在JVM内存中
+* 直接缓冲区：通过allocateDirect方法分配缓冲区，将缓冲区建立在操作系统的物理内存中（实现零拷贝），可以提高效率，但是和物理磁盘建立的引用不容易销毁，除非垃圾回收机制进行回收
+
 ## 缓冲区状态变量
 
-- capacity：最大容量；
-- position：当前已经读写的字节数；
-- limit：还可以读写的字节数。
+- capacity：最大容量；一旦声明不能改变
+- position：位置。表示缓冲区中正在操作的数据的位置。`0 <= mark <= position <= limit <= capacity`
+- limit：界限。表示缓冲区中的可以操作数据的大小（界限）。即limit后面的位置是不能读写的
+- mark：标记。表示记录当前的position的位置。通过reset方法恢复到mark的位置
 
 状态变量的改变过程举例：
 
@@ -358,49 +513,40 @@ I/O 包和 NIO 已经很好地集成了，java.io.\* 已经以 NIO 为基础重�
 
 ![7](./assert/7.png)
 
-## 文件 NIO 实例
-
-以下展示了使用 NIO 快速复制文件的实例：
-
 ```java
-public static void fastCopy(String src, String dist) throws IOException {
+public void test1() {
+	String str = "aaaa";
+	ByteBuffer buffer = ByteBuffer.allocate(1024);
+	//[pos=0 lim=1024 cap=1024]
+	System.out.println("1. " + buffer);
+	//往缓冲区中写数据
+	buffer.put(str.getBytes());
+	//[pos=4 lim=1024 cap=1024]
+	System.out.println("2. " + buffer);
+	//切换读写模式
+	buffer.flip();
+	//[pos=0 lim=4 cap=1024]
+	System.out.println("3. " + buffer);
+	byte[] bytes = new byte[buffer.limit()];
+	//从缓冲区中取数据
+	buffer.get(bytes);
+	//[pos=4 lim=4 cap=1024]
+	System.out.println("4. " + buffer);
+	System.out.println(Arrays.toString(bytes));
 
-    /* 获得源文件的输入字节流 */
-    FileInputStream fin = new FileInputStream(src);
+	//使得buffer可重复读数据，pos又回到了0位置
+	buffer.rewind();
+	//[pos=0 lim=4 cap=1024]
+	System.out.println("5. " + buffer);
 
-    /* 获取输入字节流的文件通道 */
-    FileChannel fcin = fin.getChannel();
-
-    /* 获取目标文件的输出字节流 */
-    FileOutputStream fout = new FileOutputStream(dist);
-
-    /* 获取输出字节流的文件通道 */
-    FileChannel fcout = fout.getChannel();
-
-    /* 为缓冲区分配 1024 个字节 */
-    ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
-
-    while (true) {
-
-        /* 从输入通道中读取数据到缓冲区中 */
-        int r = fcin.read(buffer);
-
-        /* read() 返回 -1 表示 EOF */
-        if (r == -1) {
-            break;
-        }
-
-        /* 切换读写 */
-        buffer.flip();
-
-        /* 把缓冲区的内容写入输出文件中 */
-        fcout.write(buffer);
-
-        /* 清空缓冲区 */
-        buffer.clear();
-    }
+	//清空缓冲区，但是缓冲区的数据依然存在
+	buffer.clear();
+	//[pos=0 lim=1024 cap=1024]
+	System.out.println("6. " + buffer);
 }
 ```
+
+
 
 ## 选择器
 

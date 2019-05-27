@@ -118,7 +118,7 @@ List list = Arrays.asList(1, 2, 3);
 
 ```java
 public class ArrayList<E> extends AbstractList<E>
-        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
+        implements List<E>, RandomAccess, Cloneable, java.nio.Serializable
 ```
 
 数组的默认大小为 10。
@@ -194,8 +194,8 @@ modCount 用来记录 ArrayList 结构发生变化的次数。结构发生变化
 在进行序列化或者迭代等操作时，需要比较操作前后 modCount 是否改变，如果改变了需要抛出 ConcurrentModificationException。
 
 ```java
-private void writeObject(java.io.ObjectOutputStream s)
-    throws java.io.IOException{
+private void writeObject(java.nio.ObjectOutputStream s)
+    throws java.nio.IOException{
     // Write out element count, and any hidden stuff
     int expectedModCount = modCount;
     s.defaultWriteObject();
@@ -227,8 +227,8 @@ transient Object[] elementData; // non-private to simplify nested class access
 ArrayList 实现了 writeObject() 和 readObject() 来控制只序列化数组中有元素填充那部分内容。
 
 ```java
-private void readObject(java.io.ObjectInputStream s)
-    throws java.io.IOException, ClassNotFoundException {
+private void readObject(java.nio.ObjectInputStream s)
+    throws java.nio.IOException, ClassNotFoundException {
     elementData = EMPTY_ELEMENTDATA;
 
     // Read in size, and any hidden stuff
@@ -251,8 +251,8 @@ private void readObject(java.io.ObjectInputStream s)
 ```
 
 ```java
-private void writeObject(java.io.ObjectOutputStream s)
-    throws java.io.IOException{
+private void writeObject(java.nio.ObjectOutputStream s)
+    throws java.nio.IOException{
     // Write out element count, and any hidden stuff
     int expectedModCount = modCount;
     s.defaultWriteObject();
@@ -287,7 +287,7 @@ oos.writeObject(list);
 
 ```java
 public class ArrayList<E> extends AbstractList<E>
-        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
+        implements List<E>, RandomAccess, Cloneable, java.nio.Serializable
 ```
 
 可以看到继承了`RandomAccess, Cloneable, Serializable`接口，然后这些接口中是没有方法定义的。

@@ -3,7 +3,7 @@
 更多详细内容参考：[Java NIO教程](http://tutorials.jenkov.com/java-nio/channels.html)
 
 # 一、 文件`I/O`基石：`Path`
-`Java7`中文件`IO`发生了很大的变化，专门引入了很多新的类来取代原来的基于`java.io.File`的文件`IO`操作方式：
+`Java7`中文件`IO`发生了很大的变化，专门引入了很多新的类来取代原来的基于`java.nio.File`的文件`IO`操作方式：
 
 ```java
 import java.nio.file.DirectoryStream;

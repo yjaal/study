@@ -153,7 +153,7 @@ String 被声明为 final，因此它不可被继承。
 
 ```java
 public final class String
-    implements java.io.Serializable, Comparable<String>, CharSequence {
+    implements java.nio.Serializable, Comparable<String>, CharSequence {
     /** The value is used for character storage. */
     private final char value[];
 }
@@ -163,7 +163,7 @@ public final class String
 
 ```java
 public final class String
-    implements java.io.Serializable, Comparable<String>, CharSequence {
+    implements java.nio.Serializable, Comparable<String>, CharSequence {
     /** The value is used for character storage. */
     private final byte[] value;
 
