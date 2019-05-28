@@ -157,7 +157,9 @@ public class TestChannel {
 		out.close();
 	}
 
-	//字符集编码与解码
+	/**
+	 * 字符集编码与解码
+	 */
 	public void test5() throws CharacterCodingException {
 		Charset cst = Charset.forName("GBK");
 		CharsetEncoder encode = cst.newEncoder();

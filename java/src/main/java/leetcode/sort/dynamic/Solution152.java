@@ -22,45 +22,59 @@ package leetcode.sort.dynamic;
 public class Solution152 {
 	public static void main(String[] args) {
 		Solution152 s = new Solution152();
-		int[] nums = new int[]{2, 3, -2, 4};
-		System.out.println(s.maxProduct(nums));
+		int[] nums = new int[]{4, 0, 2, 3};
+		System.out.println(s.maxProduct1(nums));
 	}
 
 	public int maxProduct(int[] nums) {
-		if (nums.length == 1) {
+		int len = nums.length;
+		if (len == 1) {
 			return nums[0];
 		}
-		int[] dpMax = new int[nums.length];
-		int[] dpMin = new int[nums.length];
-		int max = Math.max(Integer.MIN_VALUE, nums[0]);
-		dpMax[0] = nums[0] == 0 ? 1 : nums[0];
-		dpMin[0] = nums[0] == 0 ? 1 : nums[0];
+		int maxPre = nums[0], minPre = nums[0], max = nums[0], maxCur, minCur;
 		for (int i = 1; i < nums.length; i++) {
+			maxCur = Math.max(nums[i], Math.max(maxPre * nums[i], minPre * nums[i]));
+			minCur = Math.min(nums[i], Math.min(maxPre * nums[i], minPre * nums[i]));
+			maxPre = maxCur;
+			minPre = minCur;
+			max = Math.max(max, maxCur);
+		}
+		return max;
+	}
+
+	/**
+	 * 复杂度较低解法
+	 * 之所以要循环两次，是因为可能会有负值的情况
+	 * 如： -2 3 0 4
+	 * 第一次循环完后max = 4
+	 * 第二次循环完max = 3
+	 * 最后结果为4
+	 */
+	public int maxProduct1(int[] nums) {
+		int a = 1;
+		int max = nums[0];
+
+		for (int num : nums) {
+			a = a * num;
+			if (max < a) {
+				max = a;
+			}
+			if (num == 0) {
+				a = 1;
+			}
+
+		}
+		a = 1;
+		for (int i = nums.length - 1; i >= 0; i--) {
+			a = a * nums[i];
+			if (max < a) {
+				max = a;
+			}
 			if (nums[i] == 0) {
-				max = Math.max(dpMax[i], max);
-				dpMax[i] = 1;
-				dpMin[i] = 1;
-			} else if (nums[0] > 0) {
-				dpMax[i] = dpMax[i - 1] * nums[i];
-				dpMin[i] = dpMin[i - 1] * nums[i];
-				max = dpMax[i];
-			} else {
-				//全部小于0
-				if (dpMax[i - 1] < 0) {
-					dpMax[i] = dpMin[i - 1] * nums[i];
-					dpMin[i] = dpMax[i - 1];
-					max = Math.max(dpMax[i], max);
-				} else if (dpMin[i - 1] > 0) {
-					//或者全部大于0
-					dpMax[i] = dpMin[i - 1];
-					dpMin[i] = dpMax[i - 1] * nums[i];
-				} else {
-					dpMax[i] = Math.max(dpMax[i - 1] * nums[i], dpMin[i - 1] * nums[i]);
-					dpMax[i] = Math.min(dpMax[i - 1] * nums[i], dpMin[i - 1] * nums[i]);
-					max = dpMax[i];
-				}
+				a = 1;
 			}
 		}
 		return max;
 	}
+
 }
