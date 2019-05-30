@@ -11,6 +11,8 @@
 		<module>java</module>
 		<module>web</module>
 		<module>redis</module>
+		<module>MQ</module>
+		<module>ES</module>
 	</modules>
 
 	<parent>
