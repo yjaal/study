@@ -22,23 +22,44 @@ package leetcode.sort.dynamic;
  */
 public class Solution221 {
 
+	public static void main(String[] args) {
+		Solution221 s = new Solution221();
+		char[][] matrix = new char[][]{
+				{'1', '0', '1', '0', '0'},
+				{'1', '0', '1', '1', '1'},
+				{'1', '1', '1', '1', '1'},
+				{'1', '0', '0', '1', '0'}};
+		System.out.println(s.maximalSquare(matrix));
+	}
+
 	public int maximalSquare(char[][] matrix) {
+		if (null == matrix || matrix.length == 0 || null == matrix[0] || matrix[0].length == 0) {
+			return 0;
+		}
 		int num = matrix.length;
 		int col = matrix[0].length;
 		int[][] dp = new int[num][col];
-		for(int i = 0; i < num; i++) {
-			dp[i][0] = matrix[i][0] == 0 ? 0 : 1;
+		int max = 0;
+		for (int i = 0; i < num; i++) {
+			if (matrix[i][0] == '1') {
+				dp[i][0] = 1;
+				max = 1;
+			}
 		}
-		for(int j = 0; j < col; j++) {
-			dp[0][j] = matrix[0][j] == 0 ? 0 : 1;
+		for (int j = 0; j < col; j++) {
+			if (matrix[0][j] == '1') {
+				dp[0][j] = 1;
+				max = 1;
+			}
 		}
-		for(int i = 1; i < num; i++) {
-			for(int j = 1;j < col; j++) {
-				if (matrix[i][j] == 1) {
-					dp[i][j] = Math.min(dp[i- 1][j], dp[i][j - 1]);
+		for (int i = 1; i < num; i++) {
+			for (int j = 1; j < col; j++) {
+				if (matrix[i][j] == '1') {
+					dp[i][j] = Math.min(dp[i - 1][j - 1], Math.min(dp[i - 1][j], dp[i][j - 1])) + 1;
+					max = Math.max(max, dp[i][j]);
 				}
 			}
 		}
-		return 0;
+		return max * max;
 	}
 }
