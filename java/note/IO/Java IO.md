@@ -28,6 +28,7 @@
     * [套接字 NIO 实例](#套接字-nio-实例)
     * [内存映射文件](#内存映射文件)
     * [对比](#对比)
+* [八、AIO](#八AIO)
 
 <!-- GFM-TOC -->
 
@@ -830,3 +831,17 @@ NIO 与普通 I/O 的区别主要有以下两点：
 
 - NIO 是非阻塞的；
 - NIO 面向块，I/O 面向流。
+
+
+
+# 八、AIO
+
+jdk7中新增了一些与文件(网络)I/O相关的一些api。这些API被称为NIO.2，或称为AIO(Asynchronous I/O)。AIO最大的一个特性就是异步能力，这种能力对socket与文件I/O都起作用。AIO其实是一种在读写操作结束之前允许进行其他操作的I/O处理。AIO是对JDK1.4中提出的同步非阻塞I/O(NIO)的进一步增强。
+
+jdk7主要增加了三个新的异步通道:
+
+* AsynchronousFileChannel: 用于文件异步读写；
+* AsynchronousSocketChannel: 客户端异步socket；
+* AsynchronousServerSocketChannel: 服务器异步socket。
+
+因为AIO的实施需充分调用OS参与，IO需要操作系统支持、并发也同样需要操作系统的支持，所以性能方面不同操作系统差异会比较明显。
