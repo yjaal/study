@@ -29,6 +29,8 @@
     * [内存映射文件](#内存映射文件)
     * [对比](#对比)
 * [八、AIO](#八AIO)
+    * [io.netty.buffer和java.nio.ByteBuffer的区别](#io.netty.buffer和java.nio.ByteBuffer的区别)
+    * [Netty的零拷贝(zero copy)](#Netty的零拷贝(zero copy))
 
 <!-- GFM-TOC -->
 
@@ -836,6 +838,16 @@ NIO 与普通 I/O 的区别主要有以下两点：
 
 # 八、AIO
 
+参考：
+
+```http
+https://juejin.im/entry/583ec2e3128fe1006bfa6c83
+https://blog.csdn.net/anxpp/article/details/51512200
+https://colobu.com/2014/11/13/java-aio-introduction/
+```
+
+
+
 jdk7中新增了一些与文件(网络)I/O相关的一些api。这些API被称为NIO.2，或称为AIO(Asynchronous I/O)。AIO最大的一个特性就是异步能力，这种能力对socket与文件I/O都起作用。AIO其实是一种在读写操作结束之前允许进行其他操作的I/O处理。AIO是对JDK1.4中提出的同步非阻塞I/O(NIO)的进一步增强。
 
 jdk7主要增加了三个新的异步通道:
@@ -844,4 +856,124 @@ jdk7主要增加了三个新的异步通道:
 * AsynchronousSocketChannel: 客户端异步socket；
 * AsynchronousServerSocketChannel: 服务器异步socket。
 
-因为AIO的实施需充分调用OS参与，IO需要操作系统支持、并发也同样需要操作系统的支持，所以性能方面不同操作系统差异会比较明显。
+因为AIO的实施需充分调用OS参与，IO需要操作系统支持、并发也同样需要操作系统的支持，所以性能方面不同操作系统差异会比较明显。注意：在linux上，AIO并不一定比NIO快，这也是为什么Netty是基于NIO实现，而不是基于AIO实现。
+
+在不同的操作系统上,AIO由不同的技术实现。
+Windows上是使用完成接口(`IOCP`)实现,可以参看`WindowsAsynchronousServerSocketChannelImpl`,
+其它平台上使用aio调用`UnixAsynchronousServerSocketChannelImpl, UnixAsynchronousSocketChannelImpl, SolarisAsynchronousChannelProvider`
+
+
+
+异步channel API提供了两种方式监控/控制异步操作(connect,accept, read，write等)。
+
+* 第一种方式是返回java.util.concurrent.Future对象， 检查Future的状态可以得到操作是否完成还是失败，还是进行中， future.get阻塞当前进程。
+* 第二种方式为操作提供一个回调参数java.nio.channels.CompletionHandler，这个回调类包含completed,failed两个方法。
+
+```java
+// accept使用了回调的方式， 而发送数据使用了future的方式。
+public class Server {
+	private static Charset charset = Charset.forName("US-ASCII");
+    private static CharsetEncoder encoder = charset.newEncoder();
+	
+	public static void main(String[] args) throws Exception {
+		AsynchronousChannelGroup group = AsynchronousChannelGroup.withThreadPool(Executors.newFixedThreadPool(4));
+		AsynchronousServerSocketChannel server = AsynchronousServerSocketChannel.open(group).bind(new InetSocketAddress("0.0.0.0", 8013));
+		server.accept(null, new CompletionHandler<AsynchronousSocketChannel, Void>() {
+			@Override
+			public void completed(AsynchronousSocketChannel result, Void attachment) {
+				server.accept(null, this); // 接受下一个连接
+				try {
+					 String now = new Date().toString();
+					 ByteBuffer buffer = encoder.encode(CharBuffer.wrap(now + "\r\n"));
+					//result.write(buffer, null, new CompletionHandler<Integer,Void>(){...}); //callback or
+					Future<Integer> f = result.write(buffer);
+					f.get();
+					System.out.println("sent to client: " + now);
+					result.close();
+				} catch (IOException | InterruptedException | ExecutionException e) {
+					e.printStackTrace();
+				}
+			}
+			@Override
+			public void failed(Throwable exc, Void attachment) {
+				exc.printStackTrace();
+			}
+		});
+		group.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+	}
+}
+
+//connect使用了future方式，而接收数据使用了回调的方式。
+public class Client {
+	public static void main(String[] args) throws Exception {
+		AsynchronousSocketChannel client = AsynchronousSocketChannel.open();
+		Future<Void> future = client.connect(new InetSocketAddress("127.0.0.1", 8013));
+		future.get();
+		
+		ByteBuffer buffer = ByteBuffer.allocate(100);
+		client.read(buffer, null, new CompletionHandler<Integer, Void>() {
+			@Override
+			public void completed(Integer result, Void attachment) {
+				System.out.println("client received: " + new String(buffer.array()));
+			}
+			@Override
+			public void failed(Throwable exc, Void attachment) {
+				exc.printStackTrace();
+				try {
+					client.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}				
+			}
+		});
+		Thread.sleep(10000);
+	}
+}
+```
+
+src包中的例子更为复杂一些。
+
+
+
+## io.netty.buffer和java.nio.ByteBuffer的区别
+
+ByteBuffer主要有两个继承的类分别是：HeapByteBuffer和MappedByteBuffer。他们的不同之处在于
+
+HeapByteBuffer会在JVM的堆上分配内存资源，而MappedByteBuffer的资源则会由JVM之外的操作系统内核来分
+
+配。DirectByteBuffer继承了MappedByteBuffer，采用了直接内存映射的方式，将文件直接映射到虚拟内存，同
+
+时减少在内核缓冲区和用户缓冲区之间的调用，尤其在处理大文件方面有很大的性能优势。但是在使用内存映射的
+
+时候会造成文件句柄一直被占用而无法删除的情况，网上也有很多介绍。
+
+Netty中使用ChannelBuffer来处理读写，之所以废弃ByteBuffer，官方说法是ChannelBuffer简单易用并且有性
+
+能方面的优势。在ChannelBuffer中使用ByteBuffer或者byte[]来存储数据。同样的，ChannelBuffer也提供了几
+
+个标记来控制读写并以此取代ByteBuffer的position和limit，分别是：
+
+0 <= readerIndex <= writerIndex <= capacity，同时也有类似于mark的markedReaderIndex和
+
+markedWriterIndex。当写入buffer时，writerIndex增加，从buffer中读取数据时readerIndex增加，而不能超过
+
+writerIndex。有了这两个变量后，就不用每次写入buffer后调用flip()方法，方便了很多。
+
+
+
+## Netty的零拷贝(zero copy)
+
+Netty的“零拷贝”主要体现在如下三个方面：
+
+* 1) Netty的接收和发送ByteBuffer采用DIRECT BUFFERS，使用堆外直接内存进行Socket读写，不需要进行字节缓冲区的二次拷贝。如果使用传统的堆内存（HEAP BUFFERS）进行Socket读写，JVM会将堆内存Buffer拷贝一份到直接内存中，然后才写入Socket中。相比于堆外直接内存，消息在发送过程中多了一次缓冲区的内存拷贝。
+* 2) Netty提供了组合Buffer对象，可以聚合多个ByteBuffer对象，用户可以像操作一个Buffer那样方便的对组合Buffer进行操作，避免了传统通过内存拷贝的方式将几个小Buffer合并成一个大的Buffer。
+* 3) Netty的文件传输采用了transferTo方法，它可以直接将文件缓冲区的数据发送到目标Channel，避免了传统通过循环write方式导致的内存拷贝问题。
+
+
+
+
+
+
+
+
+
