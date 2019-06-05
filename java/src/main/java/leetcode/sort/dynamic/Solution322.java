@@ -1,5 +1,7 @@
 package leetcode.sort.dynamic;
 
+import java.util.Arrays;
+
 /**
  * 322. 零钱兑换
  *
@@ -34,7 +36,32 @@ public class Solution322 {
 		if (null == coins || coins.length == 0) {
 			return -1;
 		}
-		
+
 		return -1;
+	}
+
+
+	/**
+	 * 最优解
+	 */
+	public int coinChange1(int[] coins, int amount) {
+		Arrays.sort(coins);
+		process(coins, amount, 0, coins.length - 1);
+		return min == Integer.MAX_VALUE ? -1 : min;
+	}
+
+	int min = Integer.MAX_VALUE;
+
+	private void process(int[] coins, int amount, int count, int index) {
+		if (index < 0 || count + amount / coins[index] >= min) {
+			return;
+		}
+		if (amount % coins[index] == 0) {
+			min = Math.min(min, count + amount / coins[index]);
+			return;
+		}
+		for (int i = amount / coins[index]; i >= 0; i--) {
+			process(coins, amount - coins[index] * i, count + i, index - 1);
+		}
 	}
 }
