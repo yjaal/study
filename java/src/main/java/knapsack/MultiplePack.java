@@ -91,7 +91,13 @@ public class MultiplePack {
 				values.add(k * values.get(i));
 				costs.add(k * costs.get(i));
 			}
+			//剩余的部分
+			if (counts.get(i) > 0) {
+				values.add(counts.get(i) * values.get(i));
+				costs.add(counts.get(i) * costs.get(i));
+			}
 		}
+
 		num = values.size();
 		//01背包解法
 		for (int i = 1; i < num; i++) {
