@@ -31,8 +31,50 @@ package leetcode.sort.greed;
  * 进阶:你能否用 O(n) 时间复杂度完成此题?
  */
 public class Solution376 {
-	public int wiggleMaxLength(int[] nums) {
 
-		return 0;
+	/**
+	 * 最优解
+	 * 首先观察数据以及题意要求，理解本题的本质，后一个数比前面小-大-小-大这样
+	 * 然后举例子，比如实例2中，前6位，1 17 5 10 13 15，可以构成的摇摆数列有三个，那么选哪个显而易见
+	 * 所以贪心策略就出来了：在递增子序列部分，选最大的数，贪心尽量使递增子序列下一个数成为摇摆序列。递减相反
+	 * 即贪心的只保留递增或者递减子序列中的首尾元素
+	 * 证明贪心比较麻烦，可以简单看下有无反例，其次可以手撸对数器证明
+	 * 设计代码可以采用状态机思考 begin、up、down，如果up与down切换，那么count++（num[i]与num[i—1]比）
+	 */
+	public int wiggleMaxLength(int[] nums) {
+		if (nums.length <= 1) {
+			return nums.length;
+		}
+		int len = nums.length;
+		int up = 1, down = 1;
+		for (int i = 1; i < len; i++) {
+			if (nums[i - 1] < nums[i]) {
+				down = up + 1;
+			}
+			if (nums[i - 1] > nums[i]) {
+				up = down + 1;
+			}
+		}
+		return Math.max(up, down);
+	}
+
+	public int wiggleMaxLength1(int[] nums) {
+		if (nums.length <= 1) {
+			return nums.length;
+		}
+		int len = nums.length;
+		int counter = 1;
+		int flag = 0;
+		for (int i = 1; i < len; i++) {
+			//flag=1表示 后>前
+			if ((nums[i - 1] > nums[i]) && (flag == 0 || flag == 1)) {
+				counter++;
+				flag = -1;
+			} else if ((nums[i - 1] < nums[i]) && (flag == 0 || flag == -1)) {
+				counter++;
+				flag = 1;
+			}
+		}
+		return counter;
 	}
 }
