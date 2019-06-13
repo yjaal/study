@@ -73,21 +73,27 @@ public class Solution402 {
 		return "".equals(num) ? "0" : num;
 	}
 
+	/**
+	 * 最优解
+	 */
 	public String removeKdigits1(String num, int k) {
-		if (num.length() == k) {
-			return "0";
-		}
-		StringBuilder s = new StringBuilder(num);
-		for (int i = 0; i < k; i++) {
-			int idx = 0;
-			for (int j = 1; j < s.length() && s.charAt(j) >= s.charAt(j - 1); j++) {
-				idx = j;
+		int digits = num.length() - k;
+		char[] stack = new char[num.length()];
+		int top = 0;
+
+		for (int i = 0; i < num.length(); i++) {
+			char c = num.charAt(i);
+			while (top > 0 && stack[top - 1] > c && k > 0) {
+				top--;
+				k--;
 			}
-			s.delete(idx, idx + 1);
-			while (s.length() > 1 && s.charAt(0) == '0') {
-				s.delete(0, 1);
-			}
+			stack[top++] = c;
 		}
-		return s.toString();
+
+		int index = 0;
+		while (index < digits && stack[index] == '0') {
+			index++;
+		}
+		return index == digits ? "0" : new String(stack, index, digits - index);
 	}
 }

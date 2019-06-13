@@ -35,7 +35,7 @@
 - 读写分离
 - ElasticSearch
 
-![high-concurrency-system-design](/images/high-concurrency-system-design.png)
+![10](./assert/10.png)
 
 
 
