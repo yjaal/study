@@ -65,7 +65,7 @@ public class Solution94 {
 		return res1;
 	}
 
-	class TreeNode {
+	private static class TreeNode {
 		int val;
 		TreeNode left;
 		TreeNode right;
