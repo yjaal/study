@@ -45,42 +45,44 @@ public class Solution103 {
 		System.out.println();
 	}
 
-	List<List<Integer>> res = new LinkedList<>();
-
+	/**
+	 * 递归
+	 * @param root
+	 * @return
+	 */
 	public List<List<Integer>> zigzagLevelOrder(TreeNode root) {
+		List<List<Integer>> res = new LinkedList<>();
 		if (null == root) {
 			return res;
 		}
-		helper(root, 0, true);
+		helper(root, 0, res);
 		return res;
 	}
 
-	private void helper(TreeNode root, int count, boolean flag) {
+	/**
+	 * 偶数层从左向右，奇数层从右向左
+	 */
+	private void helper(TreeNode root, int level, List<List<Integer>> res) {
 		if (null == root) {
 			return;
 		}
 		LinkedList<Integer> list;
-		if (res.size() <= count) {
+		if (res.size() <= level) {
 			list = new LinkedList<>();
 			res.add(list);
 		} else {
-			list = (LinkedList) res.get(count);
+			list = (LinkedList) res.get(level);
 		}
-		if (flag) {
+		//偶数层在后面插入，奇数层在前面插入
+		if (level % 2 == 0) {
+			list.addLast(root.val);
+		} else {
 			list.addFirst(root.val);
-		} else {
-			list.add(root.val);
 		}
-		count++;
-		flag = !flag;
-		//flag:true表示从左向右
-		if (flag) {
-			helper(root.left, count, flag);
-			helper(root.right, count, flag);
-		} else {
-			helper(root.right, count, flag);
-			helper(root.left, count, flag);
-		}
+		//注意：下面其实是和上面反着来的，不能调换
+		//其实我们可以固定下面的某一种顺序，然后来确定是偶数在后面插，还是在前面插入
+		helper(root.left, level + 1, res);
+		helper(root.right, level + 1, res);
 	}
 
 	private static class TreeNode {
