@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Stack;
 
 /**
- * 94. 二叉树的中序遍历(左-中-右)
+ * 94. 二叉树的中序遍历(左中右、右中左)
  *
  * @author yj
  * @version 1.0

@@ -1,7 +1,9 @@
 package leetcode.sort.stack;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * 103. 二叉树的锯齿形层次遍历
@@ -41,14 +43,46 @@ public class Solution103 {
 		root.left = l;
 		root.right = r;
 		Solution103 s = new Solution103();
-		List<List<Integer>> listList = s.zigzagLevelOrder(root);
+		List<List<Integer>> listList = s.zigzagLevelOrder1(root);
 		System.out.println();
 	}
 
 	/**
-	 * 递归
-	 * @param root
-	 * @return
+	 * 使用栈实现
+	 */
+	public List<List<Integer>> zigzagLevelOrder1(TreeNode root) {
+		List<List<Integer>> res = new ArrayList<>();
+		if (null == root) {
+			return res;
+		}
+		Queue<TreeNode> queue = new LinkedList<>();
+		queue.offer(root);
+		int level = 1;
+		while (!queue.isEmpty()) {
+			int size = queue.size();
+			ArrayList<Integer> list = new ArrayList<>();
+			while (size-- > 0) {
+				TreeNode cur = queue.poll();
+				if (level % 2 == 0) {
+					list.add(0, cur.val);
+				} else {
+					list.add(cur.val);
+				}
+				if (null != cur.left) {
+					queue.offer(cur.left);
+				}
+				if (null != cur.right) {
+					queue.offer(cur.right);
+				}
+			}
+			res.add(list);
+			level++;
+		}
+		return res;
+	}
+
+	/**
+	 * 递归实现
 	 */
 	public List<List<Integer>> zigzagLevelOrder(TreeNode root) {
 		List<List<Integer>> res = new LinkedList<>();
