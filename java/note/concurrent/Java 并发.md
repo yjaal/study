@@ -686,7 +686,7 @@ after
 
 java.util.concurrent 类库中提供了 Condition 类来实现线程之间的协调，可以在 Condition 上调用 await() 方法使线程等待，其它线程调用 signal() 或 signalAll() 方法唤醒等待的线程。
 
-相比于 wait() 这种等待方式，await() 可以指定等待的条件，因此更加灵活。
+相比于 wait() 这种等待方式，await() 可以指定等待的条件，因此更加灵活。notify使用来唤醒使用wait的线程；而signal是用来唤醒await线程
 
 使用 Lock 来获取一个 Condition 对象。
 
@@ -733,6 +733,59 @@ public static void main(String[] args) {
 before
 after
 ```
+
+
+
+## wait与await
+
+这两个长得很像。await()的实现比较复杂。
+
+```java
+public final void await() throws InterruptedException {
+    if (Thread.interrupted())
+        throw new InterruptedException();
+    Node node = addConditionWaiter();
+    int savedState = fullyRelease(node);
+    int interruptMode = 0;
+    while (!isOnSyncQueue(node)) {
+        LockSupport.park(this);
+        if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
+            break;
+    }
+    if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
+        interruptMode = REINTERRUPT;
+    if (node.nextWaiter != null) // clean up if cancelled
+        unlinkCancelledWaiters();
+    if (interruptMode != 0)
+        reportInterruptAfterWait(interruptMode);
+}
+```
+
+先说下来源，await是ConditionObject类里面的方法，ConditionObject实现了Condition接口；而ReentrantLock里面默认有实现newCondition()方法，新建一个条件对象。该方法就是用在ReentrantLock中根据条件来设置等待。唤醒方法也是由专门的Signal()或者Signal()来执行。另外await会导致当前线程被阻塞，会**放弃锁**，这点和wait是一样的。
+
+由于所在的超类不同使用场景也不同，wait一般用于Synchronized中，而await只能用于ReentrantLock锁中，具体如下
+
+```java
+synchronized (obj) {
+      while (&lt;condition does not hold&gt;)
+       obj.wait(timeout);
+     ... // Perform action appropriate to condition
+}
+```
+
+遗留：`https://blog.csdn.net/lengxiao1993/article/details/81482410`
+
+
+
+## lock+condition的组合相比于synchronized语句+wait的组合有什么优势
+
+1)java 6 及以后，完成同样的功能，一般来说Lock及Condition 性能上没有优势; 
+
+2)Lock  接口的 lockInterruptibly() 及带参数的tryLock方法可以响应interrupt(),而进入synchronized块或方法时排队的线程不能响应interrupt()  Lock接口获取锁时可以设置超时时间，可以polled的方式用轮询，在某些需要获取多个对象锁的情况下，可以更容易地编写代码避免deadlock的发生 Lock接口可以实现非块状结构的锁，比如LinkedList每个node的锁的情况 ReentrantLock 可以实现公平锁，即在等待锁的队列上FIFO。 而synchronized 无法实现公平锁，事实上，非公平锁的效率更高Condition接口支持 在condition queue上等待的线程 设置为fair或unfair, 当且仅当Lock是fair的，它生成的Codition对象才是fair的synchronized 块或方法对于一个对象只有一个condition queue,这样如果在这个queue上如果有多个condition predicate, 比如isFull(),isEmpty() , 就必须用notfiyAll()方法， 会有context switch及获取锁的性能损失。而Lock 可以生成多个Condition 对象，就可以使用更高效的 single notification.而synchronized的优势是用起来更简单，自动释放锁。便于处理各种Exceptions
+
+3)关于 signalAll（notifyAll）以后 ，我的理解是所有在condition queue上等待的线程都会被唤醒，它们会进入等待相关Object lock 的队列， 唤醒的线程相比普通获取锁的线程没有任何优先权，这时我理解它们处于Blocked 状态，而不是Runnable 的状态。 直到某个线程获得了锁，只有它一个线程会进入Runnable状态 ，其余仍在Blocked状态的队列中等待锁。    关于竟争机制，上面也介绍了，synchronized块或方法 是非公平的， 如果notifyAll后，释放了锁，恰好有一个处于Runnable状态的线程刚好需要这个锁，它便可能会插队。    而ReentrantLock可以设置为公平锁，（ReentrantLock(boolean fair)） ， 这时便会按顺序排队。默认情况下，它也是非公平的
+
+
 
 # 七、J.U.C - AQS
 
