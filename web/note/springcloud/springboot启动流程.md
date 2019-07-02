@@ -5,6 +5,8 @@ SpringBoot启动流程
 ```
 https://juejin.im/post/5b8f05a5f265da43296c6102
 https://zhuanlan.zhihu.com/p/53022678
+//重点：
+https://blog.csdn.net/woshilijiuyi/article/details/82219585
 ```
 
 
@@ -549,7 +551,7 @@ public ConfigurableApplicationContext run(String... args) {
 
     
 
-* （9）refresh ApplicationContext`，完成`IoC`容器可用的最后一步
+* （9）`refresh ApplicationContext`，完成`IoC`容器可用的最后一步
 
     ```java
     private void refreshContext(ConfigurableApplicationContext context) {
@@ -567,7 +569,7 @@ public ConfigurableApplicationContext run(String... args) {
     }
     ```
 
-    
+    **这里调用`AbstractApplicationContext`的刷新操作就回到了`spring`容器的启动流程了，详情可参考`spring`的启动流程。**
 
 * （10）由 `SpringApplicationRunListener` 来发出 `started` 消息
 
