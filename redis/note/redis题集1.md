@@ -220,6 +220,48 @@ zrank board zhaoliu
 
 这是由 redis 的过期策略来决定。
 
+
+
+# 内存分配方式
+
+1.Redis内存申请内存方式有三种：
+
+     (1)系统自带的malloc/free方式进行申请/释放。
+     (2)使用tcmalloc进行内存的申请/释放。
+     (3)使用jemalloc进行内存申请/释放。
+```java
+/* Explicitly override malloc/free etc when using tcmalloc. */
+#if defined(USE_TCMALLOC)
+#define malloc(size) tc_malloc(size)
+#define calloc(count,size) tc_calloc(count,size)
+#define realloc(ptr,size) tc_realloc(ptr,size)
+#define free(ptr) tc_free(ptr)
+#elif defined(USE_JEMALLOC)
+#define malloc(size) je_malloc(size)
+#define calloc(count,size) je_calloc(count,size)
+#define realloc(ptr,size) je_realloc(ptr,size)
+#define free(ptr) je_free(ptr)
+#endif
+```
+
+2.内存计数器上使用了gcc的一组原子操作，实现的功能就是在used_memory+n的操作
+
+```
+//1.先做操作，再返回变化后的值
+//2.先返回变化前的值，再做操作
+#if defined(__ATOMIC_RELAXED)
+#define update_zmalloc_stat_add(__n) __atomic_add_fetch(&used_memory, (__n), __ATOMIC_RELAXED) //used_memory+=n;
+#define update_zmalloc_stat_sub(__n) __atomic_sub_fetch(&used_memory, (__n), __ATOMIC_RELAXED) //used_memory-=n;
+#elif defined(HAVE_ATOMIC)
+#define update_zmalloc_stat_add(__n) __sync_add_and_fetch(&used_memory, (__n)) //used_memory+=n;
+#define update_zmalloc_stat_sub(__n) __sync_sub_and_fetch(&used_memory, (__n)) //used_memory-=n;
+#else
+```
+
+3.还有一部函数获取系统的配置信息
+
+
+
 ## redis 过期策略
 
 redis 过期策略是：**定期删除+惰性删除**。
