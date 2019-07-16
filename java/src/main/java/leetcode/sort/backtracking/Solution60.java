@@ -1,5 +1,7 @@
 package leetcode.sort.backtracking;
 
+import java.util.Arrays;
+
 /**
  * 60. 第k个排列
  *
@@ -35,6 +37,43 @@ public class Solution60 {
 		return "";
 	}
 
+	public static void main(String[] args) {
+		Solution60 solution60 = new Solution60();
+		int[] arr = new int[]{1, 2, 6, 3, 5, 9};
+		solution60.sort(arr);
+		System.out.println(Arrays.toString(arr));
+	}
+
+	public void sort(int[] arr) {
+		helper(arr, 0, arr.length - 1);
+	}
+
+	private void helper(int[] arr, int start, int end) {
+		if (start >= end) {
+			return;
+		}
+		int i = start, j = end, middle = start + (end - start) / 2;
+		while (i <= j) {
+			while (arr[i] < arr[middle]) {
+				i++;
+			}
+			while (arr[j] > arr[middle]) {
+				j--;
+			}
+			if (i < j) {
+				int tmp = arr[i];
+				arr[i] = arr[j];
+				arr[j] = tmp;
+				i++;
+				j--;
+			}
+			if (i == j) {
+				i++;
+			}
+		}
+		helper(arr, start, j);
+		helper(arr, i, end);
+	}
 
 
 }

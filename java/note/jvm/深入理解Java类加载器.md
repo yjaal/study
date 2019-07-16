@@ -3,7 +3,7 @@
 类加载的机制的层次结构
 每个编写的`”.java”`拓展名类文件都存储着需要执行的程序逻辑，这些`”.java”`文件经过`Java`编译器编译成拓展名为`”.class”`的文件，`”.class”`文件中保存着`Java`代码经转换后的虚拟机指令，当需要使用某个类时，虚拟机将会加载它的`”.class”`文件，并创建对应的`class`对象，将`class`文件加载到虚拟机的内存，这个过程称为类加载，这里我们需要了解一下类加载的过程，如下：
 
-![类加载过程](./assert/类加载过程.png)
+![2](./assert/2.png)
 
 加载：类加载过程的一个阶段：通过一个类的完全限定查找此类字节码文件，并利用字节码文件创建一个`Class`对象
 
@@ -58,7 +58,7 @@ private static File[] getExtDirs() {
 双亲委派模式工作原理
 双亲委派模式要求除了顶层的启动类加载器外，其余的类加载器都应当有自己的父类加载器，请注意双亲委派模式中的父子关系并非通常所说的类继承关系，而是采用组合关系来复用父类加载器的相关代码，类加载器间的关系如下：
 
-![双亲委派模式](./assert/双亲委派模式.png)
+![8](./assert/8.png)
 
 双亲委派模式工作原理的是，如果一个类加载器收到了类加载请求，它并不会自己先去加载，而是把这个请求委托给父类的加载器去执行，如果父类加载器还存在其父类加载器，则进一步向上委托，依次递归，请求最终将到达顶层的启动类加载器，如果父类加载器可以完成类加载任务，就成功返回，倘若父类加载器无法完成此加载任务，子加载器才会尝试自己去加载，这就是双亲委派模式，即每个儿子都很懒，每次有活就丢给父亲去干，直到父亲说这件事我也干不了时，儿子自己想办法去完成，这不就是传说中的实力坑爹啊？那么采用这种模式有啥用呢?
 
@@ -71,7 +71,7 @@ java.lang.SecurityException: Prohibited package name: java.lang
 
 所以无论如何都无法加载成功的。下面我们从代码层面了解几个`Java`中定义的类加载器及其双亲委派模式的实现，它们类图关系如下
 
-![双亲委派模式的实现](./assert/双亲委派模式的实现.png)
+![9](./assert/9.png)
 
 从图可以看出顶层的类加载器是`ClassLoader`类，它是一个抽象类，其后所有的类加载器都继承自`ClassLoader`（不包括启动类加载器），这里我们主要介绍`ClassLoader`中几个比较重要的方法。
 
@@ -155,11 +155,11 @@ protected Class<?> findClass(String name) throws ClassNotFoundException {
 
 上述4个方法是`ClassLoader`类中的比较重要的方法，也是我们可能会经常用到的方法。接看`SercureClassLoader`扩展了` ClassLoader`，新增了几个与使用相关的代码源(对代码源的位置及其证书的验证)和权限定义类验证(主要指对`class`源码的访问权限)的方法，一般我们不会直接跟这个类打交道，更多是与它的子类`URLClassLoader`有所关联，前面说过，`ClassLoader`是一个抽象类，很多方法是空的没有实现，比如 `findClass()、findResource()`等。而`URLClassLoader`这个实现类为这些方法提供了具体的实现，并新增了`URLClassPath`类协助取得`Class`字节码流等功能，在编写自定义类加载器时，如果没有太过于复杂的需求，可以直接继承`URLClassLoader`类，这样就可以避免自己去编写`findClass()`方法及其获取字节码流的方式，使自定义类加载器编写更加简洁，下面是`URLClassLoader`的类图(利用`IDEA`生成的类图)
 
-![URLClassLoader的类图](./assert/URLClassLoader的类图.png)
+![URLClassLoader的类图](./assert/10.png)
 
 从类图结构看出`URLClassLoader`中存在一个`URLClassPath`类，通过这个类就可以找到要加载的字节码流，也就是说`URLClassPath`类负责找到要加载的字节码，再读取成字节流，最后通过`defineClass()`方法创建类的`Class`对象。从`URLClassLoader`类的结构图可以看出其构造方法都有一个必须传递的参数`URL[]`，该参数的元素是代表字节码文件的路径,换句话说在创建`URLClassLoader`对象时必须要指定这个类加载器的到那个目录下找`class`文件。同时也应该注意`URL[]`也是`URLClassPath`类的必传参数，在创建`URLClassPath`对象时，会根据传递过来的`URL`数组中的路径判断是文件还是`jar`包，然后根据不同的路径创建`FileLoader`或者`JarLoader`或默认`Loader`类去加载相应路径下的`class`文件，而当`JVM`调用`findClass()`方法时，就由这3个加载器中的一个将`class`文件的字节码流加载到内存中，最后利用字节码流创建类的`class`对象。请记住，如果我们在定义类加载器时选择继承`ClassLoader`类而非`URLClassLoader`，必须手动编写`findclass()`方法的加载逻辑以及获取字节码流的逻辑。了解完`URLClassLoader`后接着看看剩余的两个类加载器，即拓展类加载器`ExtClassLoader`和系统类加载器`AppClassLoader`，这两个类都继承自`URLClassLoader`，是`sun.misc.Launcher`的静态内部类。`sun.misc.Launcher`主要被系统用于启动主应用程序，`ExtClassLoader`和`AppClassLoader`都是由`sun.misc.Launcher`创建的，其类主要类结构如下：
 
-![sun.misc.Launcher类图](./assert/sun.misc.Launcher类图.png)
+![sun.misc.Launcher类图](./assert/11.png)
 
 它们间的关系正如前面所阐述的那样，同时我们发现`ExtClassLoader`并没有重写`loadClass()`方法，这足矣说明其遵循双亲委派模式，而`AppClassLoader`重载了`loadCass()`方法，但最终调用的还是父类`loadClass()`方法，因此依然遵守双亲委派模式，重载方法源码如下：
 
@@ -610,7 +610,7 @@ public static void main(String[] args) throws ClassNotFoundException {
 在`Java`应用中存在着很多服务提供者接口（`Service Provider Interface，SPI`），这些接口允许第三方为它们提供实现，如常见的` SPI `有` JDBC、JNDI`等，这些` SPI` 的接口属于` Java `核心库，一般存在`rt.jar`包中，由`Bootstrap`类加载器加载，而` SPI `的第三方实现代码则是作为`Java`应用所依赖的` jar `包被存放在`classpath`路径下，由于`SPI`接口中的代码经常需要加载具体的第三方实现类并调用其相关方法，但`SPI`的核心接口类是由引导类加载器来加载的，而`Bootstrap`类加载器无法直接加载`SPI`的实现类，同时由于双亲委派模式的存在，`Bootstrap`类加载器也无法反向委托`AppClassLoader`加载器`SPI`的实现类。在这种情况下，我们就需要一种特殊的类加载器来加载第三方的类库，而线程上下文类加载器就是很好的选择。 
 线程上下文类加载器（`contextClassLoader`）是从` JDK 1.2 `开始引入的，我们可以通过`java.lang.Thread`类中的`getContextClassLoader()`和 `setContextClassLoader(ClassLoader cl)`方法来获取和设置线程的上下文类加载器。如果没有手动设置上下文类加载器，线程将继承其父线程的上下文类加载器，初始线程的上下文类加载器是系统类加载器（`AppClassLoader`）,在线程中运行的代码可以通过此类加载器来加载类和资源，如下图所示，以`jdbc.jar`加载为例
 
-![jdbc.jar加载](./assert/jdbc.jar加载.png)
+![jdbc.jar加载](./assert/12.png)
 
 从图可知`rt.jar`核心包是有`Bootstrap`类加载器加载的，其内包含`SPI`核心接口类，由于`SPI`中的类经常需要调用外部实现类的方法，而`jdbc.jar`包含外部实现类(`jdbc.jar`存在于`classpath`路径)无法通过`Bootstrap`类加载器加载，因此只能委派线程上下文类加载器把`jdbc.jar`中的实现类加载到内存以便`SPI`相关类使用。显然这种线程上下文类加载器的加载方式破坏了“双亲委派模型”，它在执行过程中抛弃双亲委派加载链模式，使程序可以逆向使用类加载器，当然这也使得`Java`类加载器变得更加灵活。为了进一步证实这种场景，不妨看看`DriverManager`类的源码，`DriverManager`是`Java`核心`rt.jar`包中的类，该类用来管理不同数据库的实现驱动即`Driver`，它们都实现了`Java`核心包中的`java.sql.Driver`接口，如`mysql`驱动包中的`com.mysql.jdbc.Driver`，这里主要看看如何加载外部实现类，在`DriverManager`初始化时会执行如下代码
 
@@ -638,7 +638,7 @@ public class DriverManager {
 
 在`DriverManager`类初始化时执行了`loadInitialDrivers()`方法,在该方法中通过`ServiceLoader.load(Driver.class);`去加载外部实现的驱动类，`ServiceLoader`类会去读取`mysql`的`jdbc.jar`下`META-INF`文件的内容，如下所示
 
-![jdbc.jar下META-INF](./assert/jdbc.jar下META-INF.png)
+![jdbc.jar下META-INF](./assert/13.png)
 
 而`com.mysql.jdbc.Driver`继承类如下：
 
