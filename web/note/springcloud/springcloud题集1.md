@@ -36,23 +36,78 @@
 
 
 
+7、ribbon和 feign 的区别
+
+1、Ribbon 和 feign 都是客户端的负载均衡的工具，Feign的底层就是通过Ribbon实现的，它是对Ribbon的进一步的封装，让Ribbon 更加好用。
+2、Ribbon 使用HttpClient 或 RestTemplate 模拟http请求，步骤相当繁琐。而Feign采用接口+注解的方式 ，将需要调用的其他服务的方法定义成抽象方法即可， 不需要自己构建http请求。然后就像是调用自身工程的方法调用，而感觉不到是调用远程方法，使得编写 客户端变得非常容易。类似于 mybatis 的 @Mapper注解 。
 
 
 
+8、什么是自我保护模式？
+默认情况下，如果EurekaServer在一定时间内没有接收到某个微服务实例的心跳，EurekaServer将会进入自我保护模式，在该模式下EurekaServer就会保护服务注册表中的信息，不再删除服务注册表中的数据（也就是不会注销任何微服务）。当网络故障恢复后，该Eureka Server节点会自动退出自我保护模式。 它的设计哲学就是宁可保留错误的服务注册信息，也不盲目注销任何可能健康的服务实例。一句话讲解：好死不如赖活着 。
 
 
 
+9、Eureka和ZooKeeper都可以提供服务注册与发现的功能,请说说两个的区别
+
+* ZooKeeper保证的是CP,Eureka保证的是AP
+
+    * ZooKeeper在选举期间注册服务瘫痪,虽然服务最终会恢复,但是选举期间不可用的
+        Eureka各个节点是平等关系,只要有一台Eureka就可以保证服务可用,而查询到的数据并不是最新的
+
+    * 自我保护机制会导致
+
+        Eureka不再从注册列表移除因长时间没收到心跳而应该过期的服务
+        Eureka仍然能够接受新服务的注册和查询请求,但是不会被同步到其他节点(高可用)
+        当网络稳定时,当前实例新的注册信息会被同步到其他节点中(最终一致性)
+        Eureka可以很好的应对因网络故障导致部分节点失去联系的情况,而不会像ZooKeeper一样使得整个注册系统瘫痪
+
+* ZooKeeper有Leader和Follower角色,Eureka各个节点平等
+
+* ZooKeeper采用过半数存活原则,Eureka采用自我保护机制解决分区问题
+
+* Eureka本质上是一个工程,而ZooKeeper只是一个进程
 
 
 
+10、相关实现原理
+
+摘自：`https://zhuanlan.zhihu.com/p/54634405`
+
+（1）服务注册发现组件Eureka工作原理
+
+![8](./assert/8.jpg)
+
+（2）服务网关组件Zuul工作原理
+
+![9](./assert/9.jpg)
+
+（3）跨域时序图
+
+![10](./assert/10.jpg)
+
+（4）Eureka与Ribbon整合工作原理
+
+![11](./assert/11.jpg)
+
+（5）解决分布式一致性
+
+![12](./assert/12.jpg)
 
 
 
+（6）级联故障流程
 
+![13](./assert/13.jpg)
 
+（7）断路器组件Hystrix工作原理
 
+![14](./assert/14.jpg)
 
+（8）分布式追踪Sleuth工作原理
 
+![15](./assert/15.jpg)
 
+（9）SpringBoot自动配置工作原理
 
-
+![16](./assert/16.jpg)
