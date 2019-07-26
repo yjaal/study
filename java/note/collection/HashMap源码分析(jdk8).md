@@ -261,7 +261,7 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
 
 以上就是 `HashMap `插入的逻辑，并不是很复杂，这里就不多说了。接下来来分析一下扩容机制。
 
-
+我们直到`HashMap`的键和值都是可以为`null`的，而`null`键存放在数组中的第一个位置，即`table[0]`。
 
 #### 2.5 扩容
 
