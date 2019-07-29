@@ -90,7 +90,10 @@ FairSync 与 NonfairSync的区别在于，是不是保证获取锁的公平性�
 **lock.lock()怎么获取锁？**![img](https://user-gold-cdn.xitu.io/2018/9/12/165cb670f8ca3ab3?imageView2/0/w/1280/h/960/format/webp/ignore-error/1)
 
 ```java
-/** * Acquires the lock. */public void lock() {    sync.lock();}
+/** * Acquires the lock. */
+public void lock() {    
+    sync.lock();
+}
 ```
 
 可以看到调用的是，`NonfairSync.lock()`
