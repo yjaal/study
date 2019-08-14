@@ -558,7 +558,7 @@ protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory b
 
 ### 2.6 `Bean`初始化前后相关操作#`registerBeanPostProcessors`
 
-注意：此时我们还只是将相关的`BeanDefinition`注册到了`BeanFactory`容器中，这里将相关`Bean`初始化操作注册进去。即调用`registerBeanPostProcessors`方法，注册所有实现`BeanPostProcessor`接口的`bean`。注意，这里实现了BeanPostProcessor接口的bean在这里进行了初始化。
+注意：此时我们还只是将相关的`BeanDefinition`注册到了`BeanFactory`容器中，这里将相关`Bean`初始化操作注册进去。即调用`registerBeanPostProcessors`方法，注册所有实现`BeanPostProcessor`接口的`bean`。注意，这里实现了`BeanPostProcessor`接口的`bean`在这里进行了初始化。
 
 ```java
 // AbstractApplicationContext extends DefaultResourceLoader
@@ -1208,6 +1208,13 @@ public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, Bean
 
 （2）`bean` 属性注入`#populateBean`
 
+方法`populateBean`执行了最终的`Autowired`动作，我们看一下它做了什么？话说这块有点麻烦了，开始之前想讲几个比较重要的类和接口吧：
+
+* A)` PropertyValue`：这是一个用来表示`Bean`属性的对象，其中定义了属性的名字和值等信息，如`simpleService`，和`simpleDao`属性。
+* B)` PropertyDescriptor`：这个是`Bean`属性的描述符，其中定义了该属性可能存在的`setter`和`getter`方法，以及所有`Bean`的`Class`对象。
+* C)` InjectionMetadata`：这个是注入元数据，包含了目标`Bean`的`Class`对象，和注入元素（`InjectionElement`）集合
+* D) `InjectionElement`：这个是注入元素，包含了注入元素的`java.lang.reflect.Member `的对象，以及一个`PropertyDescriptor`对象。就是对`java.lang.reflect.Member`的一个封装，用来执行最终的注入动作，它有两个子类，分别是：`AutowiredFieldElement`表示字段属性，`AutowiredMethodElement`表示方法。其实最终的目标就是将`PropertyValue`中的`value`值赋给`InjectionElement`中的`Member`对象
+
 ```java
 // AbstractAutowireCapableBeanFactory
 protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
@@ -1227,7 +1234,7 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
 	}
 	// bean 实例的所有属性都在这里了
 	PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
-
+	// 在这里进行判断是否有@Autowired注解
 	if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_NAME || mbd.getResolvedAutowireMode() == AUTOWIRE_BY_TYPE) {
 		MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
 		// 通过名字找到所有属性值，如果是 bean 依赖，先初始化依赖的 bean。记录依赖关系
