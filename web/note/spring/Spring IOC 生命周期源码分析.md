@@ -1051,7 +1051,21 @@ protected Object doCreateBean(final String beanName, final RootBeanDefinition mb
 		mbd.resolvedTargetType = beanType;
 	}
 
-	// ......略
+	// Allow post-processors to modify the merged bean definition.
+	synchronized (mbd.postProcessingLock) {
+		if (!mbd.postProcessed) {
+			try {
+                // 把被@Autowired标注的属性放到AutowiredAnnotationBeanPostProcessor的
+                // this.injectionMetadataCache缓存里
+				applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
+			}
+			catch (Throwable ex) {
+				throw new BeanCreationException(mbd.getResourceDescription(), beanName,
+						"Post-processing of merged bean definition failed", ex);
+			}
+			mbd.postProcessed = true;
+		}
+	}
 
 	// 下面这块代码是为了解决循环依赖的问题
 	boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
@@ -1068,7 +1082,7 @@ protected Object doCreateBean(final String beanName, final RootBeanDefinition mb
 	Object exposedObject = bean;
 	try {
         // （2）这一步也是非常关键的，这一步负责属性装配，因为前面的实例只是实例化了，并没有设值，
-        // 这里就是设值
+        // 这里就是设值，同时进行注入
 		populateBean(beanName, mbd, instanceWrapper);
         // （3）还记得 init-method 吗？还有 InitializingBean 接口？还有 BeanPostProcessor 
         // 接口？ 这里就是处理 bean 初始化完成后的各种回调
@@ -1211,9 +1225,23 @@ public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, Bean
 方法`populateBean`执行了最终的`Autowired`动作，我们看一下它做了什么？话说这块有点麻烦了，开始之前想讲几个比较重要的类和接口吧：
 
 * A)` PropertyValue`：这是一个用来表示`Bean`属性的对象，其中定义了属性的名字和值等信息，如`simpleService`，和`simpleDao`属性。
+
 * B)` PropertyDescriptor`：这个是`Bean`属性的描述符，其中定义了该属性可能存在的`setter`和`getter`方法，以及所有`Bean`的`Class`对象。
+
 * C)` InjectionMetadata`：这个是注入元数据，包含了目标`Bean`的`Class`对象，和注入元素（`InjectionElement`）集合
+
 * D) `InjectionElement`：这个是注入元素，包含了注入元素的`java.lang.reflect.Member `的对象，以及一个`PropertyDescriptor`对象。就是对`java.lang.reflect.Member`的一个封装，用来执行最终的注入动作，它有两个子类，分别是：`AutowiredFieldElement`表示字段属性，`AutowiredMethodElement`表示方法。其实最终的目标就是将`PropertyValue`中的`value`值赋给`InjectionElement`中的`Member`对象
+
+* 在`populateBean()`的时候，会调用`AutowiredAnnotationBeanPostProcessor.postProcessPropertyValues()`进而调用`findAutowiringMetadata`直接从上面构建的缓存中取出`InjectionMetadata`，然后执行注入（`inject`）流程。
+
+    相关详细调用栈参考：
+
+    ```http
+    https://blog.csdn.net/jshayzf/article/details/84428595
+    https://blog.csdn.net/qq_27529917/article/details/78454912
+    ```
+
+    
 
 ```java
 // AbstractAutowireCapableBeanFactory
@@ -1333,7 +1361,7 @@ protected Object initializeBean(final String beanName, final Object bean, @Nulla
 
 
 
-
+spring相关扩展机制参考:`https://github.com/javagrowing/JGrowing/blob/master/%E5%B8%B8%E7%94%A8%E6%A1%86%E6%9E%B6/Spring%E5%85%A8%E5%AE%B6%E6%A1%B6/Spring/%E8%81%8A%E8%81%8Aspring%E7%9A%84%E9%82%A3%E4%BA%9B%E6%89%A9%E5%B1%95%E6%9C%BA%E5%88%B6.md`
 
 
 
