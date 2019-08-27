@@ -321,5 +321,384 @@ Unlock tables;
 
 
 
+## 记录锁、间隙锁、临键锁
 
+摘自：`https://zhuanlan.zhihu.com/p/48269420`
+
+
+
+### 记录锁(Record Locks)
+
+记录锁是 **封锁记录，记录锁也叫行锁**，例如：
+
+```sql
+SELECT * FROM `test` WHERE `id`=1 FOR UPDATE;
+```
+
+它会在 id=1 的记录上加上记录锁，以阻止其他事务插入，更新，删除 id=1 这一行。
+
+
+
+**记录锁、间隙锁、临键锁都是排它锁**，而记录锁的使用方法跟之前的一篇文章 [共享/排它锁](https://zhuanlan.zhihu.com/p/48127815) 里的排它锁介绍一致，这里就不详细多讲。
+
+
+
+### 间隙锁(Gap Locks)（重点）
+
+**间隙锁是封锁索引记录中的间隔**，或者第一条索引记录之前的范围，又或者最后一条索引记录之后的范围。
+
+
+
+**产生间隙锁的条件（RR事务隔离级别下；）：**
+
+1. 使用普通索引锁定；
+2. 使用多列唯一索引；
+3. 使用唯一索引锁定多行记录。
+
+以上情况，都会产生间隙锁，下面是小编看了官方文档理解的：
+
+> 对于使用唯一索引来搜索并给某一行记录加锁的语句，不会产生间隙锁。（这不包括搜索条件仅包括多列唯一索引的一些列的情况；在这种情况下，会产生间隙锁。）例如，如果id列具有唯一索引，则下面的语句仅对具有id值100的行使用记录锁，并不会产生间隙锁：
+
+```sql
+SELECT * FROM child WHERE id = 100 FOR UPDATE;
+```
+
+这条语句，就只会产生记录锁，不会产生间隙锁。
+
+
+
+**打开间隙锁设置**
+
+首先查看 innodb_locks_unsafe_for_binlog 是否禁用：
+
+```sql
+show variables like 'innodb_locks_unsafe_for_binlog';
+```
+
+查看结果：
+
+![29](./assert/29.jpg)
+
+innodb_locks_unsafe_for_binlog：默认值为OFF，即启用间隙锁。因为此参数是只读模式，如果想要禁用间隙锁，需要修改 my.cnf（windows是my.ini） 重新启动才行。
+
+```sql
+# 在 my.cnf 里面的[mysqld]添加
+[mysqld]
+innodb_locks_unsafe_for_binlog = 1
+```
+
+
+
+### 唯一索引的间隙锁
+
+**测试环境：**
+
+环境：MySQL，InnoDB，默认的隔离级别（RR）
+
+数据表：
+
+```sql
+CREATE TABLE `test` (
+  `id` int(1) NOT NULL AUTO_INCREMENT,
+  `name` varchar(8) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+数据：
+
+```sql
+INSERT INTO `test` VALUES ('1', '小罗');
+INSERT INTO `test` VALUES ('5', '小黄');
+INSERT INTO `test` VALUES ('7', '小明');
+INSERT INTO `test` VALUES ('11', '小红');
+```
+
+在进行测试之前，我们先来看看test表中存在的隐藏间隙：
+
+1. (-infinity, 1]
+2. (1, 5]
+3. (5, 7]
+4. (7, 11]
+5. (11, +infinity]
+
+
+
+**只使用记录锁，不会产生间隙锁**
+
+我们现在进行以下几个事务的测试：
+
+```sql
+/* 开启事务1 */
+BEGIN;
+/* 查询 id = 5 的数据并加记录锁 */
+SELECT * FROM `test` WHERE `id` = 5 FOR UPDATE;
+/* 延迟30秒执行，防止锁释放 */
+SELECT SLEEP(30);
+
+# 注意：以下的语句不是放在一个事务中执行，而是分开多次执行，每次事务中只有一条添加语句
+
+/* 事务2插入一条 name = '小张' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (4, '小张'); # 正常执行
+
+/* 事务3插入一条 name = '小张' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (8, '小东'); # 正常执行
+
+/* 提交事务1，释放事务1的锁 */
+COMMIT;
+```
+
+上诉的案例，由于主键是唯一索引，而且是只使用一个索引查询，并且只锁定一条记录，所以以上的例子，只会对 id = 5 的数据加上记录锁，而不会产生间隙锁。
+
+
+
+**产生间隙锁**
+
+我们继续在 id 唯一索引列上做以下的测试：
+
+```sql
+/* 开启事务1 */
+BEGIN;
+/* 查询 id 在 7 - 11 范围的数据并加记录锁 */
+SELECT * FROM `test` WHERE `id` BETWEEN 5 AND 7 FOR UPDATE;
+/* 延迟30秒执行，防止锁释放 */
+SELECT SLEEP(30);
+
+# 注意：以下的语句不是放在一个事务中执行，而是分开多次执行，每次事务中只有一条添加语句
+
+/* 事务2插入一条 id = 3，name = '小张1' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (3, '小张1'); # 正常执行
+
+/* 事务3插入一条 id = 4，name = '小白' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (4, '小白'); # 正常执行
+
+/* 事务4插入一条 id = 6，name = '小东' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (6, '小东'); # 阻塞
+
+/* 事务5插入一条 id = 8， name = '大罗' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (8, '大罗'); # 阻塞
+
+/* 事务6插入一条 id = 9， name = '大东' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (9, '大东'); # 阻塞
+
+/* 事务7插入一条 id = 11， name = '李西' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (11, '李西'); # 阻塞
+
+/* 事务8插入一条 id = 12， name = '张三' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (12, '张三'); # 正常执行
+
+/* 提交事务1，释放事务1的锁 */
+COMMIT;
+```
+
+从上面我们可以看到，(5, 7]、(7, 11] 这两个区间，都不可插入数据，其它区间，都可以正常插入数据。所以我们可以得出结论：**当我们给 (5, 7] 这个区间加锁的时候，会锁住 (5, 7]、(7, 11] 这两个区间。**
+
+
+
+我们再来测试如果我们锁住不存在的数据时，会怎样：
+
+```sql
+/* 开启事务1 */
+BEGIN;
+/* 查询 id = 3 这一条不存在的数据并加记录锁 */
+SELECT * FROM `test` WHERE `id` = 3 FOR UPDATE;
+/* 延迟30秒执行，防止锁释放 */
+SELECT SLEEP(30);
+
+# 注意：以下的语句不是放在一个事务中执行，而是分开多次执行，每次事务中只有一条添加语句
+
+/* 事务2插入一条 id = 3，name = '小张1' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (2, '小张1'); # 阻塞
+
+/* 事务3插入一条 id = 4，name = '小白' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (4, '小白'); # 阻塞
+
+/* 事务4插入一条 id = 6，name = '小东' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (6, '小东'); # 正常执行
+
+/* 事务5插入一条 id = 8， name = '大罗' 的数据 */
+INSERT INTO `test` (`id`, `name`) VALUES (8, '大罗'); # 正常执行
+
+/* 提交事务1，释放事务1的锁 */
+COMMIT;
+```
+
+我们可以看出，指定查询某一条记录时，如果这条记录不存在，会产生间隙锁。
+
+
+
+**结论**
+
+1. 对于指定查询某一条记录的加锁语句，**如果该记录不存在，会产生记录锁和间隙锁，如果记录存在，则只会产生记录锁**，如：WHERE `id` = 5 FOR UPDATE;
+2. 对于查找某一范围内的查询语句，会产生间隙锁，如：WHERE `id` BETWEEN 5 AND 7 FOR UPDATE;
+
+
+
+### 普通索引的间隙锁
+
+
+
+**数据准备**
+
+创建 test1 表：
+
+```sql
+# 注意：number 不是唯一值
+
+CREATE TABLE `test1` (
+  `id` int(1) NOT NULL AUTO_INCREMENT,
+  `number` int(1) NOT NULL COMMENT '数字',
+  PRIMARY KEY (`id`),
+  KEY `number` (`number`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+```
+
+在这张表上，我们有 id number 这两个字段，id 是我们的主键，我们在 number 上，建立了一个普通索引，为了方便我们后面的测试。现在我们要先加一些数据：
+
+```sql
+INSERT INTO `test1` VALUES (1, 1);
+INSERT INTO `test1` VALUES (5, 3);
+INSERT INTO `test1` VALUES (7, 8);
+INSERT INTO `test1` VALUES (11, 12);
+```
+
+在进行测试之前，我们先来看看test1表中 number 索引存在的隐藏间隙：
+
+1. (-infinity, 1]
+2. (1, 3]
+3. (3, 8]
+4. (8, 12]
+5. (12, +infinity]
+
+
+
+**案例说明**
+
+我们执行以下的事务（事务1最后提交），分别执行下面的语句：
+
+```sql
+/* 开启事务1 */
+BEGIN;
+/* 查询 number = 5 的数据并加记录锁 */
+SELECT * FROM `test1` WHERE `number` = 3 FOR UPDATE;
+/* 延迟30秒执行，防止锁释放 */
+SELECT SLEEP(30);
+
+# 注意：以下的语句不是放在一个事务中执行，而是分开多次执行，每次事务中只有一条添加语句
+
+/* 事务2插入一条 number = 0 的数据 */
+INSERT INTO `test1` (`number`) VALUES (0); # 正常执行
+
+/* 事务3插入一条 number = 1 的数据 */
+INSERT INTO `test1` (`number`) VALUES (1); # 被阻塞
+
+/* 事务4插入一条 number = 2 的数据 */
+INSERT INTO `test1` (`number`) VALUES (2); # 被阻塞
+
+/* 事务5插入一条 number = 4 的数据 */
+INSERT INTO `test1` (`number`) VALUES (4); # 被阻塞
+
+/* 事务6插入一条 number = 8 的数据 */
+INSERT INTO `test1` (`number`) VALUES (8); # 正常执行
+
+/* 事务7插入一条 number = 9 的数据 */
+INSERT INTO `test1` (`number`) VALUES (9); # 正常执行
+
+/* 事务8插入一条 number = 10 的数据 */
+INSERT INTO `test1` (`number`) VALUES (10); # 正常执行
+
+/* 提交事务1 */
+COMMIT;
+```
+
+我们会发现有些语句可以正常执行，有些语句被阻塞了。我们再来看看我们表中的数据：
+
+![30](./assert/30.jpg)
+
+这里可以看到，number (1 - 8) 的间隙中，插入语句都被阻塞了，而不在这个范围内的语句，正常执行，这就是因为有间隙锁的原因。我们再进行以下的测试，方便我们更好的理解间隙锁的区域（我们要将数据还原成原来的那样）：
+
+```sql
+/* 开启事务1 */
+BEGIN;
+/* 查询 number = 5 的数据并加记录锁 */
+SELECT * FROM `test1` WHERE `number` = 3 FOR UPDATE;
+/* 延迟30秒执行，防止锁释放 */
+SELECT SLEEP(30);
+
+/* 事务1插入一条 id = 2， number = 1 的数据 */
+INSERT INTO `test1` (`id`, `number`) VALUES (2, 1); # 阻塞
+
+/* 事务2插入一条 id = 3， number = 2 的数据 */
+INSERT INTO `test1` (`id`, `number`) VALUES (3, 2); # 阻塞
+
+/* 事务3插入一条 id = 6， number = 8 的数据 */
+INSERT INTO `test1` (`id`, `number`) VALUES (6, 8); # 阻塞
+
+/* 事务4插入一条 id = 8， number = 8 的数据 */
+INSERT INTO `test1` (`id`, `number`) VALUES (8, 8); # 正常执行
+
+/* 事务5插入一条 id = 9， number = 9 的数据 */
+INSERT INTO `test1` (`id`, `number`) VALUES (9, 9); # 正常执行
+
+/* 事务6插入一条 id = 10， number = 12 的数据 */
+INSERT INTO `test1` (`id`, `number`) VALUES (10, 12); # 正常执行
+
+/* 事务7修改 id = 11， number = 12 的数据 */
+UPDATE `test1` SET `number` = 5 WHERE `id` = 11 AND `number` = 12; # 阻塞
+
+/* 提交事务1 */
+COMMIT;
+```
+
+我们来看看结果：
+
+![31](./assert/31.jpg)
+
+这里有一个奇怪的现象：
+
+- 事务3添加 id = 6，number = 8 的数据，给阻塞了；
+- 事务4添加 id = 8，number = 8 的数据，正常执行了。
+- 事务7将 id = 11，number = 12 的数据修改为 id = 11， number = 5的操作，给阻塞了；
+
+这是为什么呢？我们来看看下边的图，大家就明白了。
+
+![32](./assert/32.jpg)
+
+从图中可以看出，当 number 相同时，会根据主键 id 来排序，所以：
+
+1. 事务3添加的 id = 6，number = 8，这条数据是在 （3, 8） 的区间里边，所以会被阻塞；
+2. 事务4添加的 id = 8，number = 8，这条数据则是在（8, 12）区间里边，所以不会被阻塞；
+3. 事务7的修改语句相当于在 （3, 8） 的区间里边插入一条数据，所以也被阻塞了。
+
+
+
+**结论**
+
+1. 在普通索引列上，**不管是何种查询，只要加锁，都会产生间隙锁，这跟唯一索引不一样；**
+2. 在普通索引跟唯一索引中，数据间隙的分析，数据行是优先根据普通索引排序，再根据唯一索引排序。
+
+
+
+### 临键锁(Next-key Locks)
+
+
+
+**临键锁**，是**记录锁与间隙锁的组合**，它的封锁范围，既包含索引记录，又包含索引区间。
+
+
+
+**注：**临键锁的主要目的，也是为了避免**幻读**(Phantom Read)。如果把事务的隔离级别降级为RC，临键锁则也会失效。
+
+
+
+### 本文要点
+
+1. 记录锁、间隙锁、临键锁，都属于排它锁；
+2. 记录锁就是锁住一行记录；
+3. 间隙锁只有在事务隔离级别 RR 中才会产生；
+4. 唯一索引只有锁住多条记录或者一条不存在的记录的时候，才会产生间隙锁，指定给某条存在的记录加锁的时候，只会加记录锁，不会产生间隙锁；
+5. 普通索引不管是锁住单条，还是多条记录，都会产生间隙锁；
+6. 间隙锁会封锁该条记录相邻两个键之间的空白区域，防止其它事务在这个区域内插入、修改、删除数据，这是为了防止出现 幻读 现象；
+7. 普通索引的间隙，优先以普通索引排序，然后再根据主键索引排序（多普通索引情况还未研究）；
+8. 事务级别是RC（读已提交）级别的话，间隙锁将会失效。
 
