@@ -1,5 +1,7 @@
 package leetcode.sort.depthFirstSearch;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 114. 二叉树展开为链表
  * @author yj
@@ -60,7 +62,9 @@ public class Solution114 {
 				left.right = right;
 				break;
 			}
+			new AtomicInteger();
 		}
+
 		return root;
 	}
 

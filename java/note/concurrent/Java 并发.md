@@ -860,6 +860,8 @@ public class CountdownLatchExample {
 run..run..run..run..run..run..run..run..run..run..end
 ```
 
+最好不要用CountDownLatch实例的await()，归避长时间阻塞线程的风险，任何多线程应用程序都有死锁风险，改用CountDownLatch实例的await(long timeout, TimeUnit unit)，设定超时时间，如果超时，将返回false,这样我们得知超时后，可以做异常处理，而await()是void类型，没有返回值，我们无法得知超时信息
+
 ## CyclicBarrier
 
 用来控制多个线程互相等待，只有当多个线程都到达时，这些线程才会继续执行。
@@ -1793,3 +1795,27 @@ JDK 1.6 引入了偏向锁和轻量级锁，从而让锁拥有了四个状态：
 
 - 使用线程池而不是直接创建线程，这是因为创建线程代价很高，线程池可以有效地利用有限的线程来启动任务。
 
+# 十四、并发包
+
+摘自：`https://blog.csdn.net/jiyiqinlovexx/article/details/51175975`
+
+一、描述线程的类：Runable和Thread都属于java.lang包
+
+二、内置锁synchronized属于jvm关键字，内置条件队列操作接口Object.wait()/notify()/notifyAll()属于java.lang包
+
+三、提供内存可见性和防止指令重排的volatile属于jvm关键字
+
+四、而java.util.concurrent包(J.U.C)中包含的是java并发编程中有用的一些工具类，包括几个部分：
+
+* 1、locks部分：包含在java.util.concurrent.locks包中，提供显式锁(互斥锁和速写锁)相关功能；
+
+* 2、atomic部分：包含在java.util.concurrent.atomic包中，提供原子变量类相关的功能，是构建非阻塞算法的基础；
+
+* 3、executor部分：散落在java.util.concurrent包中，提供线程池相关的功能；
+
+* 4、collections部分：散落在java.util.concurrent包中，提供并发容器相关功能；
+
+* 5、tools部分：散落在java.util.concurrent包中，提供同步工具类，如信号量、闭锁、栅栏等功能；
+
+
+![65](./assert/65.png)
