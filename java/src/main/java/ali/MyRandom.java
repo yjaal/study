@@ -16,23 +16,18 @@ public class MyRandom {
 	private List<Integer> res = new ArrayList<>();
 
 	public List<Integer> solution() {
-		//生成一个[1,10000]的数
-		int num = new Random().nextInt(10000) + 1;
-		res.add(num);
-		
+		randInt(1, 10000);
+		res.sort(Integer::compareTo);
+		res.forEach(System.out::println);
 		return res;
 	}
 
-	public static int randInt(int min, int max) {
-
-		// NOTE: Usually this should be a field rather than a method
-		// variable so that it is not re-seeded every call.
-		Random rand = new Random();
-
-		// nextInt is normally exclusive of the top value,
-		// so add 1 to make it inclusive
-		int randomNum = rand.nextInt((max - min) + 1) + min;
-
-		return randomNum;
+	private void randInt(int min, int max) {
+		if (min <= max) {
+			int randomNum = new Random().nextInt((max - min) + 1) + min;
+			res.add(randomNum);
+			randInt(min, randomNum - 1);
+			randInt(randomNum + 1, max);
+		}
 	}
 }

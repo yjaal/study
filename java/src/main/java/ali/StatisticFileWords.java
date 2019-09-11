@@ -48,7 +48,7 @@ public class StatisticFileWords {
 		}
 		if (file.isDirectory()) {
 			File[] fs = file.listFiles();
-			Arrays.asList(fs).forEach(f -> getAllFiles(f.getName()));
+			Arrays.asList(fs).forEach(f -> getAllFiles(f.getAbsolutePath()));
 		}
 	}
 }
