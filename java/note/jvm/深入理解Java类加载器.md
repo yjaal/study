@@ -1,6 +1,7 @@
 摘自：`https://blog.csdn.net/javazejian/article/details/73413292`
 
-类加载的机制的层次结构
+# 类加载的机制的层次结构
+
 每个编写的`”.java”`拓展名类文件都存储着需要执行的程序逻辑，这些`”.java”`文件经过`Java`编译器编译成拓展名为`”.class”`的文件，`”.class”`文件中保存着`Java`代码经转换后的虚拟机指令，当需要使用某个类时，虚拟机将会加载它的`”.class”`文件，并创建对应的`class`对象，将`class`文件加载到虚拟机的内存，这个过程称为类加载，这里我们需要了解一下类加载的过程，如下：
 
 ![2](./assert/2.png)
@@ -19,10 +20,12 @@
 
 
 
-启动（`Bootstrap`）类加载器
+## 启动（`Bootstrap`）类加载器
+
 **启动类加载器主要加载的是`JVM`自身需要的类，这个类加载使用`C++`语言实现的，是虚拟机自身的一部分**，它负责将 `<JAVA_HOME>/lib`路径下的核心类库或`-Xbootclasspath`参数指定的路径下的`jar`包加载到内存中，注意由于虚拟机是按照文件名识别加载`jar`包的，如`rt.jar`，如果文件名不被虚拟机识别，即使把`jar`包丢到`lib`目录下也是没有作用的(出于安全考虑，`Bootstrap`启动类加载器只加载包名为`java、javax、sun`等开头的类)。
 
-扩展（`Extension`）类加载器
+## 扩展（`Extension`）类加载器
+
 扩展类加载器是指`Sun`公司实现的`sun.misc.Launcher$ExtClassLoader`类，由`Java`语言实现的，是`Launcher`的静态内部类，它负责加载`<JAVA_HOME>/lib/ext`目录下或者由系统变量`-Djava.ext.dir`指定位路径中的类库，开发者可以直接使用标准扩展类加载器。
 
 ```java
@@ -46,14 +49,15 @@ private static File[] getExtDirs() {
  }
 ```
 
-系统（`System`）类加载器
+## 系统（`System`）类加载器
+
 也称应用程序加载器是指` Sun`公司实现的`sun.misc.Launcher$AppClassLoader`。它负责加载系统类路径`java -classpath`或`-D java.class.path `指定路径下的类库，也就是我们经常用到的`classpath`路径，开发者可以直接使用系统类加载器，一般情况下该类加载是程序中默认的类加载器，通过`ClassLoader#getSystemClassLoader()`方法可以获取到该类加载器。 
 
 在`Java`的日常应用程序开发中，类的加载几乎是由上述3种类加载器相互配合执行的，在必要时，我们还可以自定义类加载器，需要注意的是，`Java`虚拟机对`class`文件采用的是按需加载的方式，也就是说当需要使用该类时才会将它的`class`文件加载到内存生成`class`对象，而且加载某个类的`class`文件时，`Java`虚拟机采用的是双亲委派模式即把请求交由父类处理，它一种任务委派模式，下面我们进一步了解它。
 
 
 
-理解双亲委派模式
+# 理解双亲委派模式
 
 双亲委派模式工作原理
 双亲委派模式要求除了顶层的启动类加载器外，其余的类加载器都应当有自己的父类加载器，请注意双亲委派模式中的父子关系并非通常所说的类继承关系，而是采用组合关系来复用父类加载器的相关代码，类加载器间的关系如下：
@@ -62,7 +66,8 @@ private static File[] getExtDirs() {
 
 双亲委派模式工作原理的是，如果一个类加载器收到了类加载请求，它并不会自己先去加载，而是把这个请求委托给父类的加载器去执行，如果父类加载器还存在其父类加载器，则进一步向上委托，依次递归，请求最终将到达顶层的启动类加载器，如果父类加载器可以完成类加载任务，就成功返回，倘若父类加载器无法完成此加载任务，子加载器才会尝试自己去加载，这就是双亲委派模式，即每个儿子都很懒，每次有活就丢给父亲去干，直到父亲说这件事我也干不了时，儿子自己想办法去完成，这不就是传说中的实力坑爹啊？那么采用这种模式有啥用呢?
 
-双亲委派模式优势
+# 双亲委派模式优势
+
 采用双亲委派模式的是好处是`Java`类随着它的类加载器一起具备了一种带有优先级的层次关系，通过这种层级关可以避免类的重复加载，当父亲已经加载了该类时，就没有必要子`ClassLoader`再加载一次。其次是考虑到安全因素，`java`核心`api`中定义类型不会被随意替换，假设通过网络传递一个名为`java.lang.Integer`的类，通过双亲委托模式传递到启动类加载器，而启动类加载器在核心`Java API`发现这个名字的类，发现该类已被加载，并不会重新加载网络传递的过来的`java.lang.Integer`，而直接返回已加载过的`Integer.class`，这样便可以防止核心`API`库被随意篡改。可能你会想，如果我们在`classpath`路径下自定义一个名为`java.lang.SingleInterge`类(该类是胡编的)呢？该类并不存在`java.lang`中，经过双亲委托模式，传递到启动类加载器中，由于父类加载器路径下并没有该类，所以不会加载，将反向委托给子类加载器加载，最终会通过系统类加载器加载该类。但是这样做是不允许，因为`java.lang`是核心`API`包，需要访问权限，强制加载将会报出如下异常
 
 ```java
@@ -185,7 +190,8 @@ public Class loadClass(String name, boolean resolve)
 
 其实无论是`ExtClassLoader`还是`AppClassLoader`都继承`URLClassLoader`类，因此它们都遵守双亲委托模型，这点是毋庸置疑的。到此我们对`ClassLoader、URLClassLoader、ExtClassLoader、AppClassLoader`以及`Launcher`类间的关系有了比较清晰的了解，同时对一些主要的方法也有一定的认识，这里并没有对这些类的源码进行详细的分析，毕竟没有那个必要，因为我们主要弄得类与类间的关系和常用的方法同时搞清楚双亲委托模式的实现过程，为编写自定义类加载器做铺垫就足够了。前面出现了很多父类加载器的说法，但每个类加载器的父类到底是谁，一直没有阐明，下面我们就通过代码验证的方式来阐明这答案。
 
-类加载器间的关系
+# 类加载器间的关系
+
 我们进一步了解类加载器间的关系(并非指继承关系)，主要可以分为以下4点
 
 启动类加载器，由`C++`实现，没有父类。
@@ -299,7 +305,8 @@ public URLClassLoader(URL[] urls, ClassLoader parent,
 
 显然`ExtClassLoader`的父类为`null`，而`AppClassLoader`的父加载器为`ExtClassLoader`，所有自定义的类加载器其父加载器只会是`AppClassLoader`，注意这里所指的父类并不是Java继承关系中的那种父子关系。
 
-类与类加载器
+# 类与类加载器
+
 在`JVM`中表示两个`class`对象是否为同一个类对象存在两个必要条件
 
 类的完整类名必须一致，包括包名。
@@ -354,7 +361,8 @@ System.out.println("Class->obj3:"+DemoObj.class.hashCode());
 了解`class`文件的显示加载与隐式加载的概念
 所谓`class`文件的显示加载与隐式加载的方式是指`JVM`加载`class`文件到内存的方式，显示加载指的是在代码中通过调用`ClassLoader`加载`class`对象，如直接使用`Class.forName(name)`或`this.getClass().getClassLoader().loadClass()`加载`class`对象。而隐式加载则是不直接在代码中调用`ClassLoader`的方法加载`class`对象，而是通过虚拟机自动加载到内存中，如在加载某个类的`class`文件时，该类的`class`文件中引用了另外一个类的对象，此时额外引用的类将通过`JVM`自动加载到内存中。在日常开发以上两种方式一般会混合使用，这里我们知道有这么回事即可。
 
-编写自己的类加载器
+# 编写自己的类加载器
+
 通过前面的分析可知，实现自定义类加载器需要继承`ClassLoader`或者`URLClassLoader`，继承`ClassLoader`则需要自己重写`findClass()`方法并编写加载逻辑，继承`URLClassLoader`则可以省去编写`findClass()`方法以及`class`文件加载转换成字节码流的代码。那么编写自定义类加载器的意义何在呢？
 
 当`class`文件不在`ClassPath`路径下，默认系统类加载器无法找到该`class`文件，在这种情况下我们需要实现一个自定义的`ClassLoader`来加载特定路径下的`class`文件生成`class`对象。
@@ -363,7 +371,8 @@ System.out.println("Class->obj3:"+DemoObj.class.hashCode());
 
 当需要实现热部署功能时(一个`class`文件通过不同的类加载器产生不同`class`对象从而实现热部署功能)，需要实现自定义`ClassLoader`的逻辑。
 
-自定义`File`类加载器
+## 自定义`File`类加载器
+
 这里我们继承`ClassLoader`实现自定义的特定路径下的文件类加载器并加载编译后`DemoObj.class`，源码代码如下
 
 ```java
@@ -506,7 +515,8 @@ public class FileUrlClassLoader extends URLClassLoader {
 
 非常简洁除了需要重写构造器外无需编写`findClass()`方法及其`class`文件的字节流转换逻辑。
 
-自定义网络类加载器
+## 自定义网络类加载器
+
 自定义网络类加载器，主要用于读取通过网络传递的`class`文件（在这里我们省略`class`文件的解密过程），并将其转换成字节流生成对应的`class`对象，如下
 
 ```java
@@ -567,7 +577,8 @@ public class NetClassLoader extends ClassLoader {
 
 比较简单，主要是在获取字节码流时的区别，从网络直接获取到字节流再转车字节数组然后利用`defineClass`方法创建`class`对象，如果继承`URLClassLoader`类则和前面文件路径的实现是类似的，无需担心路径是`filePath`还是`Url`，因为`URLClassLoader`内的`URLClassPath`对象会根据传递过来的URL数组中的路径判断是文件还是`jar`包，然后根据不同的路径创建`FileLoader`或者`JarLoader`或默认类`Loader`去读取对于的路径或者`url`下的`class`文件。
 
-热部署类加载器
+## 热部署类加载器
+
 所谓的热部署就是利用同一个`class`文件不同的类加载器在内存创建出两个不同的`class`对象(关于这点的原因前面已分析过，即利用不同的类加载实例)，由于`JVM`在加载类之前会检测请求的类是否已加载过(即在`loadClass()`方法中调用`findLoadedClass()`方法)，如果被加载过，则直接从缓存获取，不会重新加载。注意同一个类加载器的实例和同一个`class`文件只能被加载器一次，多次加载将报错，因此我们实现的热部署必须让同一个`class`文件可以根据不同的类加载器重复加载，以实现所谓的热部署。实际上前面的实现的`FileClassLoader`和`FileUrlClassLoader`已具备这个功能，但前提是直接调用`findClass()`方法，而不是调用`loadClass()`方法，因为`ClassLoader`中`loadClass()`方法体中调用`findLoadedClass()`方法进行了检测是否已被加载，因此我们直接调用`findClass()`方法就可以绕过这个问题，当然也可以重新`loadClass`方法，但强烈不建议这么干。利用`FileClassLoader`类测试代码如下：
 
 ```java
@@ -606,7 +617,8 @@ public static void main(String[] args) throws ClassNotFoundException {
 }
 ```
 
-双亲委派模型的破坏者-线程上下文类加载器
+## 双亲委派模型的破坏者-线程上下文类加载器
+
 在`Java`应用中存在着很多服务提供者接口（`Service Provider Interface，SPI`），这些接口允许第三方为它们提供实现，如常见的` SPI `有` JDBC、JNDI`等，这些` SPI` 的接口属于` Java `核心库，一般存在`rt.jar`包中，由`Bootstrap`类加载器加载，而` SPI `的第三方实现代码则是作为`Java`应用所依赖的` jar `包被存放在`classpath`路径下，由于`SPI`接口中的代码经常需要加载具体的第三方实现类并调用其相关方法，但`SPI`的核心接口类是由引导类加载器来加载的，而`Bootstrap`类加载器无法直接加载`SPI`的实现类，同时由于双亲委派模式的存在，`Bootstrap`类加载器也无法反向委托`AppClassLoader`加载器`SPI`的实现类。在这种情况下，我们就需要一种特殊的类加载器来加载第三方的类库，而线程上下文类加载器就是很好的选择。 
 线程上下文类加载器（`contextClassLoader`）是从` JDK 1.2 `开始引入的，我们可以通过`java.lang.Thread`类中的`getContextClassLoader()`和 `setContextClassLoader(ClassLoader cl)`方法来获取和设置线程的上下文类加载器。如果没有手动设置上下文类加载器，线程将继承其父线程的上下文类加载器，初始线程的上下文类加载器是系统类加载器（`AppClassLoader`）,在线程中运行的代码可以通过此类加载器来加载类和资源，如下图所示，以`jdbc.jar`加载为例
 
@@ -684,4 +696,74 @@ public static <S> ServiceLoader<S> load(Class<S> service) {
 ```
 
 很明显了确实通过线程上下文类加载器加载的，实际上核心包的`SPI`类对外部实现类的加载都是基于线程上下文类加载器执行的，通过这种方式实现了`Java`核心代码内部去调用外部实现类。我们知道线程上下文类加载器默认情况下就是`AppClassLoader`，那为什么不直接通过`getSystemClassLoader()`获取类加载器来加载`classpath`路径下的类的呢？其实是可行的，但这种直接使用`getSystemClassLoader()`方法获取`AppClassLoader`加载类有一个缺点，那就是代码部署到不同服务时会出现问题，如把代码部署到`Java Web`应用服务或者`EJB`之类的服务将会出问题，因为这些服务使用的线程上下文类加载器并非`AppClassLoader`，而是`Java Web`应用服自家的类加载器，类加载器不同。，所以我们应用该少用`getSystemClassLoader()`。总之不同的服务使用的可能默认`ClassLoader`是不同的，但使用线程上下文类加载器总能获取到与当前程序执行相同的`ClassLoader`，从而避免不必要的问题。关于线程上下文类加载器暂且聊到这，前面阐述的`DriverManager`类，大家可以自行看看源码，相信会有更多的体会，另外关于`ServiceLoader`本篇并没有过多的阐述，毕竟我们主题是类加载器，但`ServiceLoader`是个很不错的解耦机制，大家可以自行查阅其相关用法。
+
+## 自定义java.lang.String类能否被加载
+
+如果直接写一个java.lang.String类，并写一个main方法，即
+
+```java
+package java.lang;
+ 
+public class String {
+ 
+    public static void main(String[] args) {
+        System.out.println("Hello String");
+    }
+ 
+}
+```
+
+运行之后会抛一个异常：
+
+```
+错误: 在类 java.lang.String 中找不到主方法, 请将主方法定义为:
+   public static void main(String[] args)
+```
+
+
+这是什么原因呢？
+
+Java类加载机制为代理模式，先交给其父加载器去加载，如果父加载器加载不了，则由自己加载。我们自定义的类是由系统类加载器进行加载，而它的父加载器为扩展类加载器，扩展类加载器为引导类加载器。我们定义的java.lang.String最先由引导加载器加载，而它负责加载Java核心库，但java.lang.String正是系统中的类，已经被引导加载器记载过了，所以不再加载自定义的java.lang.String。但是系统的java.lang.String没有main方法，所以出现了上面的这个异常。
+
+另外，自定义包不能以 java.xxx.xxx 开头，这是一种安全机制，，如果以 java 开头，系统直接抛异常。再来看以下两段代码：
+
+片段1：
+
+```java
+package com.test;
+public class String{
+    public static void main(String[] args){
+        System.out.println("test");
+    }
+}
+
+错误：在类 com.test.String 中找不到主方法，请将主方法定义为：
+public static void main(String[] args)
+```
+
+片段2：
+
+```java
+package com.test;
+public class String{
+    public static void main(java.lang.String[] args){
+        System.out.println("test");
+    }
+}
+```
+
+对于代码片段1，虽然能加载自定义的com.test.String类，但是main方法中的String对象也是自定义的，不符合main方法的定义方式，故系统抛找不到mian方法。对于代码片段2，在main方法的定义中把String类的路径写全了，明确了，故能正常执行。
+
+这里必须要提到 java 在加载类的过程。Java在加载类时，采用的是代理模式，即，类加载器在尝试自己去查找某个类的字节代码并定义它时，会先代理给其父类加载器，由父类加载器先去尝试加载这个类，以此类推。在说明代理模式背后的原因之前，首先需要说明一下Java虚拟机是如何判定两个java类是相同的。Java虚拟机不仅要看类的全名是否相同，还要看加载此类的类加载器是否一样。只有两者都相同，才认为两个类时相同的。即便是同样的字节代码，被不同的类加载器加载之后所得到的类，也是不同的，如果此时试图对这两个类的对象进行相互赋值，会抛出运行时异常 ClassCastException。
+
+代理模式是为了保证Java核心库的类型安全，所有的Java应用都至少需要引用 java.lang.Object类，也就是说在运行时，java.lang.Object 这个类需要被加载到Java虚拟机中。如果这个过程由Java应用自己的类加载器来完成的话，很可能就存在多个版本的 java.lang.Object 类，可是这些类之间是不兼容的。通过代理模式，对于Java核心库的类的加载工作由引导类加载器统一完成，保证了 Java 应用所使用的都是同一个版本的Java核心库的类，是相互兼容的。
+
+
+
+
+
+
+
+
+
 

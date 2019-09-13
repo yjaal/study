@@ -438,7 +438,7 @@ switch 不支持 long，是因为 switch 的设计初衷是对那些只有少数
 
 ## 访问权限
 
-Java 中有三个访问权限修饰符：private、protected 以及 public，如果不加访问修饰符，表示包级可见。
+Java 中有三个访问权限修饰符：private、protected、default 以及 public，如果不加访问修饰符，表示包级可见。权限分别为同一个类，同一个包，不同包的子类，不同包的非子类，
 
 可以对类或类中的成员（字段以及方法）加上访问修饰符。
 
@@ -879,6 +879,16 @@ public int hashCode() {
     return result;
 }
 ```
+
+
+
+***如何在父类中为子类自动完成所有的hashcode和equals实现？这么做有何优劣。***
+
+父类直接实现两个方法，子类可以直接使用。有时父类的equals和hashcode不满足我们自己的要求，我们需要重新去重写。
+
+
+
+
 
 ## toString()
 
@@ -1384,6 +1394,18 @@ public class Heap {
 1、检查方法中是否有死循环
 
 2、通过参数`-Xms3062m`和`-Xmx3062m`来调整堆内存大小
+
+
+
+## 8.3 常见RuntimeException
+
+* ArrayStoreException                试图将错误类型的对象存储到一个对象数组时抛出的异常
+* ClassCastException                试图将对象强制转换为不是实例的子类时，抛出该异常
+* IllegalArgumentException         抛出的异常表明向方法传递了一个不合法或不正确的参数
+* IndexOutOfBoundsException   指示某排序索引（例如对数组、字符串或向量的排序）超出范围时抛出
+* NoSuchElementException       表明枚举中没有更多的元素
+* NullPointerException                当应用程序试图在需要对象的地方使用 null 时，抛出该异常
+    
 
 # 九、泛型
 
