@@ -256,6 +256,22 @@ public void run() {
 }
 ```
 
+***sleep(0)***
+
+摘自：`https://blog.csdn.net/qiaoquan3/article/details/56281092`
+
+Thread.sleep(0) 并非是真的要线程挂起0毫秒，意义在于这次调用Thread.sleep(0)的当前线程确实的被冻结了一下，让其他线程有机会优先执行。Thread.sleep(0) 是你的线程暂时放弃cpu，也就是释放一些未用的时间片给其他线程或进程使用，就相当于一个让位动作。这里注意：sleep是不会释放锁的，但是系统中的锁可能有很多，而对于单个cpu来说，各个锁对应的各个线程都需要有时间片去执行，使用sleep(0)的用处就在于此。
+
+当 timeout = 0， 即 Sleep(0)，如果线程调度器的可运行队列中有大于或等于当前线程优先级的就绪线程存在，操作系统会将当前线程从处理器上移除，调度其他优先级高的就绪线程运行；如果可运行队列中的没有就绪线程或所有就绪线程的优先级均低于当前线程优先级，那么当前线程会继续执行，就像没有调用 Sleep(0)一样。
+
+当 timeout > 0 时，如：Sleep(1)，会引发线程上下文切换：调用线程会从线程调度器的可运行队列中被移除一段时间，这个时间段约等于 timeout 所指定的时间长度。为什么说约等于呢？是因为睡眠时间单位为毫秒，这与系统的时间精度有关。通常情况下，系统的时间精度为 10 ms，那么指定任意少于 10 ms但大于 0 ms 的睡眠时间，均会向上求值为 10 ms。
+
+而调用 SwitchToThread() 方法，如果当前有其他就绪线程在线程调度器的可运行队列中，始终会让出一个时间切片给这些就绪线程，而不管就绪线程的优先级的高低与否。
+
+结论：由上面的分析可以看出，如果我们想让当前线程真正睡眠一下子，最好是调用 Sleep(1) 或 SwitchToThread()。
+
+
+
 ## yield()
 
 对静态方法 Thread.yield() 的调用声明了当前线程已经完成了生命周期中最重要的部分，可以切换给其它线程来执行。该方法只是对线程调度器的一个建议，而且也只是建议具有相同优先级的其它线程可以运行。
@@ -862,6 +878,16 @@ run..run..run..run..run..run..run..run..run..run..end
 
 最好不要用CountDownLatch实例的await()，归避长时间阻塞线程的风险，任何多线程应用程序都有死锁风险，改用CountDownLatch实例的await(long timeout, TimeUnit unit)，设定超时时间，如果超时，将返回false,这样我们得知超时后，可以做异常处理，而await()是void类型，没有返回值，我们无法得知超时信息
 
+摘自：`https://www.cnblogs.com/nullzx/p/5272807.html`
+
+CountDownLatch是一个同步工具，它主要用线程执行之间的协作。CountDownLatch 的作用和 Thread.join() 方法类似，让一些线程阻塞直到另一些线程完成一系列操作后才被唤醒。在直接创建线程的年代（Java 5.0 之前），我们可以使用 Thread.join()。在线程池出现后，因为线程池中的线程不能直接被引用，所以就必须使用 CountDownLatch 了。
+
+CountDownLatch主要有两个方法，当一个或多个线程调用await方法时，这些线程会阻塞。其它线程调用countDown方法会将计数器减1(**调用countDown方法的线程不会阻塞**)，当计数器的值变为0时，因await方法阻塞的线程会被唤醒，继续执行。
+
+实现原理：计数器的值由构造函数传入，并用它初始化AQS的state值。当线程调用await方法时会检查state的值是否为0，如果是就直接返回（即不会阻塞）；如果不是，将表示该节点的线程入列，然后将自身阻塞。当其它线程调用countDown方法会将计数器减1，然后判断计数器的值是否为0，当它为0时，会唤醒队列中的第一个节点，由于CountDownLatch使用了AQS的共享模式，所以第一个节点被唤醒后又会唤醒第二个节点，以此类推，使得所有因await方法阻塞的线程都能被唤醒而继续执行。
+
+从源代码和实现原理中可以看出一个CountDownLatch对象，只能使用一次，不能重复使用。
+
 ## CyclicBarrier
 
 用来控制多个线程互相等待，只有当多个线程都到达时，这些线程才会继续执行。
@@ -914,6 +940,18 @@ public class CyclicBarrierExample {
 before..before..before..before..before..before..before..before..before..before..after..after..after..after..after..after..after..after..after..after..
 ```
 
+摘自：`https://www.cnblogs.com/nullzx/p/5271964.html`
+
+CyclicBarrier 的字面意思是可循环（Cyclic）使用的屏障（Barrier）。它要做的事情是，让一组线程到达一个屏障（也可以叫同步点）时被阻塞，直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续干活。线程进入屏障通过CyclicBarrier的await()方法。
+
+CyclicBarrier默认的构造方法是CyclicBarrier(int parties)，其参数表示屏障拦截的线程数量，每个线程调用await方法告诉CyclicBarrier我已经到达了屏障，然后当前线程被阻塞。
+
+CyclicBarrier还提供一个更高级的构造函数CyclicBarrier(int parties, Runnable barrierAction)，用于在线程到达屏障时，优先执行barrierAction这个Runnable对象，方便处理更复杂的业务场景。
+
+实现原理：在CyclicBarrier的内部定义了一个Lock对象，每当一个线程调用CyclicBarrier的await方法时，将剩余拦截的线程数减1，然后判断剩余拦截数是否为0，如果不是，进入Lock对象的条件队列等待。如果是，执行barrierAction对象的Runnable方法，然后将锁的条件队列中的所有线程放入锁等待队列中，这些线程会依次的获取锁、释放锁，接着先从await方法返回，再从CyclicBarrier的await方法中返回。
+
+
+
 ## Semaphore
 
 Semaphore 类似于操作系统中的信号量，可以控制对互斥资源的访问线程数。
@@ -948,6 +986,12 @@ public class SemaphoreExample {
 ```html
 2 1 2 2 2 2 2 1 2 2
 ```
+
+摘自：`https://www.cnblogs.com/nullzx/p/5270233.html`
+
+在Java的并发包中，Semaphore类表示信号量。Semaphore内部主要通过AQS（AbstractQueuedSynchronizer）实现线程的管理。Semaphore有两个构造函数，参数permits表示许可数，它最后传递给了AQS的state值。线程在运行时首先获取许可，如果成功，许可数就减1，线程运行，当线程运行结束就释放许可，许可数就加1。如果许可数为0，则获取失败，线程位于AQS的等待队列中，它会被其它释放许可的线程唤醒。在创建Semaphore对象的时候还可以指定它的公平性。一般常用非公平的信号量，非公平信号量是指在获取许可时先尝试获取许可，而不必关心是否已有需要获取许可的线程位于等待队列中，如果获取失败，才会入列。而公平的信号量在获取许可时首先要查看等待队列中是否已有线程，如果有则入列。
+
+
 
 # 八、J.U.C - 其它组件
 
