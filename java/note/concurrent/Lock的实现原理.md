@@ -67,7 +67,11 @@ abstract static class Sync extends AbstractQueuedSynchronizer
 
 ![22](./assert/22.jpg)
 
-FairSync 与 NonfairSync的区别在于，是不是保证获取锁的公平性，因为默认是NonfairSync，我们以这个为例了解其背后的原理。
+FairSync 与 NonfairSync的区别在于，是不是保证获取锁的公平性，因为默认是NonfairSync，我们以这个为例了解其背后的原理。独占和共享的区别：
+
+* 当AQS的子类实现独占功能时，如ReentrantLock，资源是否可以被访问被定义为：只要AQS的state变量不为0，并且持有锁的线程不是当前线程，那么代表资源不可访问。
+* 当AQS的子类实现共享功能时，如CountDownLatch，资源是否可以被访问被定义为：只要AQS的state变量不为0，那么代表资源不可以为访问。
+    
 
 其他几个类代码不多，最后的主要代码都是在AQS中，我们先看看这个类的主体结构。
 
