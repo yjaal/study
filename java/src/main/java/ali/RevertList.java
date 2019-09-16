@@ -27,6 +27,9 @@ public class RevertList {
 		}
 	}
 
+	/**
+	 * 此方法遍历了两次，不好
+	 */
 	public Node revertList(Node root) {
 		if (null == root || root.next == null) {
 			return root;
@@ -48,13 +51,49 @@ public class RevertList {
 		return tail;
 	}
 
-	static class Node{
+	/**
+	 * 递归方式
+	 */
+	public Node revertList1(Node root) {
+		if (root == null || root.next == null) {
+			return root;
+		}
+		Node tHead = revertList1(root.next);
+		root.next.next = root;
+		root.next = null;
+		return tHead;
+	}
+
+	/**
+	 * 遍历方式
+	 */
+	public Node revertList2(Node root) {
+		if (root == null) {
+			return root;
+		}
+		Node pre = root;
+		Node cur = root.next;
+		Node tmp;
+		while (cur != null) {
+			tmp = cur.next;
+			cur.next = pre;
+
+			//节点往后移动
+			pre = cur;
+			cur = tmp;
+		}
+		root.next = null;
+		return root;
+	}
+
+	static class Node {
 		int val;
 		Node next;
 
 		public Node() {
 		}
-		public Node(int val){
+
+		public Node(int val) {
 			this.val = val;
 		}
 	}
