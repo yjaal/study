@@ -1405,7 +1405,7 @@ public class Heap {
 * IndexOutOfBoundsException   指示某排序索引（例如对数组、字符串或向量的排序）超出范围时抛出
 * NoSuchElementException       表明枚举中没有更多的元素
 * NullPointerException                当应用程序试图在需要对象的地方使用 null 时，抛出该异常
-    
+* ClassNotFoundException 一般类加载器加载的时候会出现
 
 # 九、泛型
 
