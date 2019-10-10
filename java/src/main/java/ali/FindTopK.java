@@ -12,7 +12,7 @@ public class FindTopK {
 	/**
 	 * 找到无序数组中最小的k个数 时间复杂度O(Nlogk)
 	 * 过程：
-	 * 1.一直维护一个有k个数的大根堆，这个堆代表目前选出来的k个最小的数
+	 * 1.一直维护一个有k个数的小根堆，这个堆代表目前选出来的k个最小的数
 	 * 在堆里的k个元素中堆顶的元素是最小的k个数中最大的那个。
 	 * 2.接下来，遍历整个数组，遍历过程中看当前数是否比堆顶元素小：
 	 * 如果是，就把堆顶元素替换成当前的数，然后从堆顶的位置调整整个堆，让替
@@ -43,11 +43,13 @@ public class FindTopK {
 		int right = curIdx * 2 + 2;
 		int parent = curIdx;
 		while (left < k) {
+			//下面两个判断就是要对左右两个子节点进行判断，将小的排除
 			if (kHeap[curIdx] > kHeap[left]) {
 				parent = left;
 			}
 			if (right < k && kHeap[curIdx] > kHeap[right]) {
-				parent = right;
+				//这里我们要在左右树中进行选择，将较小的排除
+				parent = kHeap[left] > kHeap[right] ? right : left;
 			}
 			if (parent != curIdx) {
 				swap(kHeap, parent, curIdx);
