@@ -113,7 +113,7 @@ public class Main {
 
 ## 四、核心组件
 
-在前几小节中，我们简要介绍了Fork/Join框架和它的使用。本节我们将更进一步，深入F/J框架，了解它的各个组件的关系和核心设计思想，本节不会涉及太多的源码分析，而是参考 Doug Lea的这篇论文[《A Java Fork/Join Framework》](http://gee.cs.oswego.edu/dl/papers/fj.pdf)，从宏观上分析F/J框架，然后分析整个框架的调度流程，阅读完本节后，在下一节——Fork/Join框架（2） 实现中，我们再去深入源码会轻松很多。
+在前几小节中，我们简要介绍了Fork/Join框架和它的使用。本节我们将更进一步，深入F/J框架，了解它的各个组件的关系和核心设计思想，本节不会涉及太多的源码分析，而是从宏观上分析F/J框架，然后分析整个框架的调度流程，阅读完本节后，在下一节——Fork/Join框架（2） 实现中，我们再去深入源码会轻松很多。
 
 F/J框架的实现非常复杂，内部大量运用了位操作和无锁算法，撇开这些实现细节不谈，该框架主要涉及三大核心组件：`ForkJoinPool`（线程池）、`ForkJoinTask`（任务）、`ForkJoinWorkerThread`（工作线程），外加`WorkQueue`（任务队列）：
 
@@ -332,7 +332,7 @@ ForkJoinPool中的工作队列可以分为两类：
 
 注意，由于是非工作线程通过外部方法提交的任务，所以这个任务队列并没有绑定工作线程。
 
-> 之所以是2的幂次，是由于ForkJoinPool采用了一种随机算法（类似[ConcurrentHashMap](https://segmentfault.com/a/1190000016096542)的随机算法），该算法通过线程池随机数（ThreadLocalRandom的probe值）和数组的大小计算出工作线程所映射的数组槽位，这种算法要求数组大小为2的幂次。
+> 之所以是2的幂次，是由于ForkJoinPool采用了一种随机算法（类似ConcurrentHashMap的随机算法），该算法通过线程池随机数（ThreadLocalRandom的probe值）和数组的大小计算出工作线程所映射的数组槽位，这种算法要求数组大小为2的幂次。
 
 ------
 
@@ -381,7 +381,7 @@ protected Long compute() {
 之前说过，由于是由工作线程ForkJoinWorkThread_1来调用FutureTask的`fork`方法，所以会将这两个子任务放入ForkJoinWorkThread_1自身队列中：
 
 ![73](./assert/73.png)
-  
+
 
 然后，ForkJoinWorkThread_1会阻塞等待任务1和任务2的结果（先在`subtask1.join`等待）：
 

@@ -24,7 +24,8 @@
 # 没有ZooKeeper可以使用Kafka吗？
 答：绕过Zookeeper并直接连接到Kafka服务器是不可能的，所以答案是否定的。如果以某种方式，使ZooKeeper关闭，则无法为任何客户端请求提供服务。
 
-问题8：为什么Kafka技术很重要？
+# kafka的优点
+
 答：Kafka有一些优点，因此使用起来很重要：
 高吞吐量：我们在Kafka中不需要任何大型硬件，因为它能够处理高速和大容量数据。此外，它还可以支持每秒数千条消息的消息吞吐量。
 低延迟：Kafka可以轻松处理这些消息，具有毫秒级的极低延迟，这是大多数新用例所要求的。
@@ -45,12 +46,26 @@
 # 解释领导者和追随者的概念。
 答：在Kafka的每个分区中，都有一个服务器充当领导者，0到多个服务器充当追随者的角色。
 
+在Kafka早期版本，对于分区和副本的状态的管理依赖于zookeeper的Watcher和队列：每一个broker都会在zookeeper注册Watcher，所以zookeeper就会出现大量的Watcher, 如果宕机的broker上的partition很多比较多，会造成多个Watcher触发，造成集群内大规模调整；每一个replica都要去再次zookeeper上注册监视器，当集群规模很大的时候，zookeeper负担很重。这种设计很容易出现脑裂和羊群效应以及zookeeper集群过载。
+
+新的版本中该变了这种设计，使用KafkaController，只有KafkaController，Leader会向zookeeper上注册Watcher，其他broker几乎不用监听zookeeper的状态变化。
+
+Kafka集群中多个broker，有一个会被选举为controller leader，负责管理整个集群中分区和副本的状态，比如partition的leader 副本故障，由controller 负责为该partition重新选举新的leader 副本；当检测到ISR列表发生变化，有controller通知集群中所有broker更新其MetadataCache信息；或者增加某个topic分区的时候也会由controller管理分区的重新分配工作
+
+# Kafka集群Leader选举原理
+我们知道Zookeeper集群中也有选举机制，是通过Paxos算法，通过不同节点向其他节点发送信息来投票选举出leader，但是Kafka的leader的选举就没有这么复杂了。 
+Kafka的Leader选举是通过在zookeeper上创建/controller临时节点来实现leader选举，并在该节点中写入当前broker的信息 
+{“version”:1,”brokerid”:1,”timestamp”:”1512018424988”} 
+利用Zookeeper的强一致性特性，一个节点只能被一个客户端创建成功，创建成功的broker即为leader，即先到先得原则，leader也就是集群中的controller，负责集群中所有大小事务。 
+当leader和zookeeper失去连接时，临时节点会删除，而其他broker会监听该节点的变化，当节点删除时，其他broker会收到事件通知，重新发起leader选举。
+
+
+
 # 是什么确保了Kafka中服务器的负载平衡？
 答：由于领导者的主要角色是执行分区的所有读写请求的任务，而追随者被动地复制领导者。因此，在领导者失败时，其中一个追随者接管了领导者的角色。基本上，整个过程可确保服务器的负载平衡。其实就是kafka的分配策略，在分配策略中使用了相关的算法来保证负载平衡。
 
 # 副本和ISR扮演什么角色？
-答：基本上，复制日志的节点列表就是副本。特别是对于特定的分区。但是，无论他们是否扮演领导者的角色，他们都是如此。
-此外，ISR指的是同步副本。在定义ISR时，它是一组与领导者同步的消息副本。
+答：基本上，复制日志的节点列表就是副本。特别是对于特定的分区。但是，无论他们是否扮演领导者的角色，他们都是如此。此外，ISR指的是同步副本。在定义ISR时，它是一组与领导者同步的消息副本。
 
 # 为什么Kafka的复制至关重要？
 答：由于复制，我们可以确保发布的消息不会丢失，并且可以在发生任何机器错误、程序错误或频繁的软件升级时使用。
@@ -66,8 +81,7 @@
 # 在生产者中，何时发生QueueFullException？
 答：每当Kafka生产者试图以代理的身份在当时无法处理的速度发送消息时，通常都会发生QueueFullException。但是，为了协作处理增加的负载，用户需要添加足够的代理，因为生产者不会阻止。
 
-# 解释Kafka Producer API的作用。
-答：允许应用程序将记录流发布到一个或多个Kafka主题的API就是我们所说的Producer API。
+
 
 # Kafka和Flume之间的主要区别是什么？
 答：Kafka和Flume之间的主要区别是：
@@ -111,8 +125,7 @@ Apache Flume——Flume不复制事件。
 # 解释多租户是什么？
 答：我们可以轻松地将Kafka部署为多租户解决方案。但是，通过配置主题可以生成或使用数据，可以启用多租户。此外，它还为配额提供操作支持。
 
-# 消费者API的作用是什么？
-答：允许应用程序订阅一个或多个主题并处理生成给它们的记录流的API，我们称之为消费者API。
+
 
 # 解释流API的作用？
 答：一种允许应用程序充当流处理器的API，它还使用一个或多个主题的输入流，并生成一个输出流到一个或多个输出主题，此外，有效地将输入流转换为输出流，我们称之为流API。
@@ -121,8 +134,6 @@ Apache Flume——Flume不复制事件。
 答：一个允许运行和构建可重用的生产者或消费者的API，将Kafka主题连接到现有的应用程序或数据系统，我们称之为连接器API。
 
 
-# 解释生产者是什么？
-答：生产者的主要作用是将数据发布到他们选择的主题上。基本上，它的职责是选择要分配给主题内分区的记录。
 
 # 比较RabbitMQ与Apache Kafka
 答：Apache Kafka的另一个选择是RabbitMQ。那么，让我们比较两者：
@@ -145,14 +156,7 @@ Apache Kafka中，消息即使在处理后仍然存在。这意味着Kafka中的
 传统队列系统不允许基于类似消息或事件处理逻辑。
 Apache Kafka允许基于类似消息或事件处理逻辑。
 
-# 为什么要使用Apache Kafka集群？
-答：为了克服收集大量数据和分析收集数据的挑战，我们需要一个消息队列系统。因此Apache Kafka应运而生。其好处是：
 
-只需存储/发送事件以进行实时处理，就可以跟踪Web活动。
-通过这一点，我们可以发出警报并报告操作指标。
-此外，我们可以将数据转换为标准格式。
-此外，它允许对主题的流数据进行连续处理。
-由于它的广泛使用，它秒杀了竞品，如ActiveMQ，RabbitMQ等。
 
 # 解释术语“Log Anatomy”
 答：我们将日志视为分区。基本上，数据源将消息写入日志。其优点之一是，在任何时候，都有一个或多个消费者从他们选择的日志中读取数据。下面的图表显示，数据源正在写入一个日志，而用户正在以不同的偏移量读取该日志。
@@ -166,13 +170,24 @@ Apache Kafka允许基于类似消息或事件处理逻辑。
 调整Kafka生产者
 Kafka代理调优
 调整Kafka消费者
-问题38：Apache Kafka的缺陷
+
+# Apache Kafka的缺陷
 答：Kafka的局限性是：
 
 没有完整的监控工具集
 消息调整的问题
 不支持通配符主题选择
 速度问题
+
+
+
+# 优劣势总结
+
+kafka的特点其实很明显，就是仅仅提供较少的核心功能，但是提供较高的吞吐量，ms级别的延迟，较高的可用性以及可靠性，而且是分布式的，可以任意的扩展，同时kafka也是做好的是支撑少量的topic数量即可，保证其吞吐量，而且kafka唯一的一点劣势就是可能出现就消息的重复消费，那么对数据准确性会产生影响，在大数据领域中以及日志收集中，这点轻微可以忽略。kafka的特性就是天然适合大数据实时计算以及日志的收集。
+
+Kafka天生就是一个分布式的消息队列，它可以由多个broker组成，每个broker是一个节点；你创建一个topic，这个topic可以划分为多个partition，每个partition可以存在于不同的broker上，每个partition就放一部分数据。
+
+
 
 # 列出所有Apache Kafka业务
 答：Apache Kafka的业务包括：
@@ -198,8 +213,7 @@ Kafka日志聚合
 流处理
 在流处理过程中，Kafka的强耐久性非常有用。
 
-# Kafka的一些最显著的应用。
-答：Netflix，Mozilla，Oracle
+
 
 # Kafka流的特点。
 答：Kafka流的一些最佳功能是
@@ -229,15 +243,23 @@ Mirror Maker：Mirror Maker工具有助于将一个Kafka集群的镜像提供给
 列表主题工具
 添加分区工具
 
-# Java在Apache Kafka中的重要性是什么？
-答：为了满足Kafka标准的高处理速率需求，我们可以使用java语言。此外，对于Kafka的消费者客户，Java也提供了良好的社区支持。所以，我们可以说在Java中实现Kafka是一个正确的选择。
+
 
 # 说明Kafka的一个最佳特征。
 答：Kafka的最佳特性是“各种各样的用例”。
 这意味着Kafka能够管理各种各样的用例，这些用例对于数据湖来说非常常见。例如日志聚合、Web活动跟踪等。
 
-# 解释术语“主题复制因子”。
-答：在设计Kafka系统时，考虑主题复制是非常重要的。
+# 副本因子replication-factor
+
+答：假设我们有3个kafka broker分别brokerA、brokerB、brokerC.
+
+* 当我们创建的topic有3个分区partition时并且replication-factor为1，基本上一个broker上一个分区。当一个broker宕机了，该topic就无法使用了，因为三个分区只有两个能用，
+* 当我们创建的topic有3个分区partition时并且replication-factor为2时，可能分区数据分布情况是
+    brokerA， partiton0，partiton1，
+    brokerB， partiton1，partiton2
+    brokerC， partiton2，partiton0，
+    每个分区有一个副本，当其中一个broker宕机了，kafka集群还能完整凑出该topic的三个分区，例如当brokerA宕机了，可以通过brokerB和brokerC组合出topic的三个分区。
+
 
 
 # Kafka提供的保证是什么？

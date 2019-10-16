@@ -169,3 +169,9 @@
 
 参考：`https://www.cnblogs.com/jaycekon/p/6227442.html`
 
+
+
+# 十二、使用场景
+
+缓存，消息队列，排行榜/计数器，分布式架构，做session共享
+
