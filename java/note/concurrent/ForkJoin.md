@@ -216,8 +216,8 @@ ForkJoinTask实现了Future接口，是一个异步任务，我们在使用Fork/
 
 除了ForkJoinTask，Fork/Join框架还提供了两个它的抽象实现，我们在自定义ForkJoin任务时，一般继承这两个类：
 
-- **RecursiveAction**：表示具有返回结果的ForkJoin任务
-- **RecursiveTask**：表示没有返回结果的ForkJoin任务
+- **RecursiveAction**：表示没有返回结果的ForkJoin任务
+- **RecursiveTask**：表示有返回结果的ForkJoin任务
 
 ```
 public abstract class RecursiveAction extends ForkJoinTask<Void> {
