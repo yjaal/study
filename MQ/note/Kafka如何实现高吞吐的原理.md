@@ -67,7 +67,7 @@ Socket.send(buffer)
 
 ![21](./assert/21.png)
 
-从具体实现来看，Kafka 的数据传输通过 TransportLayer 来完成，其子类 PlaintextTransportLayer 通过[Java NIO ](http://www.jasongj.com/java/nio_reactor/)的 FileChannel 的 transferTo 和 transferFrom 方法实现零拷贝，如下所示。
+从具体实现来看，Kafka 的数据传输通过 TransportLayer 来完成，其子类 PlaintextTransportLayer 通过Java NIO的 FileChannel 的 transferTo 和 transferFrom 方法实现零拷贝，如下所示。
 
 ```java
 @Override
