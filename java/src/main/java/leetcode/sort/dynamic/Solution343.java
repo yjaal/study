@@ -1,5 +1,8 @@
 package leetcode.sort.dynamic;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 整数拆分
  *
@@ -20,7 +23,12 @@ package leetcode.sort.dynamic;
  * 说明: 你可以假设 n 不小于 2 且不大于 58。
  */
 public class Solution343 {
+	public static void main(String[] args) {
+		System.out.println("aa");
+		List<Integer> list = new ArrayList<>();
 
+
+	}
 	public int integerBreak(int n) {
 		int[] dp = new int[n + 1];
 		if (n == 2) {

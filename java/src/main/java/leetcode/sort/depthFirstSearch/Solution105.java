@@ -25,34 +25,32 @@ package leetcode.sort.depthFirstSearch;
  */
 public class Solution105 {
 	public static void main(String[] args) {
-
+		int[] preorder = new int[]{3,9,20,15,7};
+		int[] inorder = new int[]{9,3,15,20,7};
+		TreeNode root = new Solution105().buildTree(preorder, inorder);
+		System.out.println();
 	}
 
 	public TreeNode buildTree(int[] preorder, int[] inorder) {
-		if (null == preorder || null == inorder || preorder.length == 0 || inorder.length == 0 || preorder.length
-				== inorder.length) {
+		if (null == preorder || null == inorder || preorder.length == 0 ||
+				inorder.length == 0 || preorder.length != inorder.length) {
 			return null;
 		}
-		return helper(preorder, inorder, 0, preorder.length - 1);
+		return helper(preorder, inorder, 0, 0, inorder.length);
 	}
 
-	private TreeNode helper(int[] pres, int[] ins, int start, int end) {
-		TreeNode root = new TreeNode(pres[start]);
-		if (start > end) {
+	private TreeNode helper(int[] pres, int[] ins, int preLeft, int inLeft,
+							int len) {
+		if (len == 0) {
 			return null;
 		}
-		if (start == end) {
-			return root;
-		}
-		for(int i = start; i <= end; i++) {
-			if (pres[start] == ins[i]) {
-				if (start == i) {
-					root.right = helper(pres, ins, start + 1, end);
-					return root;
-				}
-				int count = i - start;
-				root.left = helper(pres, ins, start, i - 1);
-				root.right = helper(pres, ins, i + 1, end);
+		int rootVal = pres[preLeft];
+		TreeNode root = new TreeNode(rootVal);
+		for (int i = 0; i < len; i++) {
+			if (rootVal == ins[inLeft + i]) {
+				root.left = helper(pres, ins, preLeft + 1, inLeft, i);
+				root.right = helper(pres, ins, preLeft + i + 1, inLeft + i + 1,
+						len - i - 1);
 				return root;
 			}
 		}
