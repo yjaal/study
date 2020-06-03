@@ -313,19 +313,379 @@ public class RightWayStopThreadInProduction implements Runnable {
 
 **`Java`没有提供任何机制来安全地终止线程。但它提供了中断(`Interruption`)，这是一种协作机制**，能够使一个线程终止另一个线程的当前工作。
 
-这种协作式的方法是必要的，我们很少希望某个任务、线程或服务立即停止，**因为这种立即停止会使共享的数据结构处于不一致的状态**。
+这种协作式的方法是必要的，我们很少希望某个任务、线程或服务立即停止，**因为这种立即停止会使共享的数据结构处于不一致的状态**。上面这种通过中断抛异常的方式显然不是很好。
 
 
 
 ### 5、停止线程
 
+停止线程可以使用上面那种方式，而`stop`方法建议不要使用。
+
+中断方式停止线程
+
+```java
+package concurrent;
+
+public class Thread7 {
+
+    public static void main(String[] args) {
+        Worker worker = new Worker();
+        worker.start();
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        worker.interrupt();
+    }
+    private static class Worker extends Thread {
+
+        @Override
+        public void run() {
+            while (true) {
+                //do something
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    //break;
+                    return;
+                }
+            }
+        }
+    }
+}
+```
 
 
 
+通过标志停止线程
+
+```java
+package concurrent;
+
+public class Thread6 {
+
+    public static void main(String[] args) {
+        Worker worker = new Worker();
+        worker.start();
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        worker.shutdown();
+    }
+
+    private static class Worker extends Thread {
+
+        private volatile boolean start = true;
+
+        @Override
+        public void run() {
+            while (start) {
+
+            }
+        }
+
+        public void shutdown() {
+            start = false;
+        }
+    }
+}
+```
+
+有时候可能在做一个耗时操作，然后阻塞在那里了。此时无法读取标志位，也无法监听到中断，此时如何强制停止线程呢？
+
+```java
+package concurrent;
+
+public class ThreadService {
+
+    private Thread executeThread;
+
+    private boolean finished = false;
+
+    public void execute(Runnable task) {
+        executeThread = new Thread(() -> {
+            Thread runner = new Thread(task);
+            runner.setDaemon(true);
+            runner.start();
+            try {
+                runner.join();
+                finished = true;
+            } catch (InterruptedException e) {
+                // e.printStackTrace();
+            }
+        });
+        executeThread.start();
+    }
+
+    public void shutdown(long mills) {
+        long currentTime = System.currentTimeMillis();
+        while (!finished) {
+            if (System.currentTimeMillis() - currentTime >= mills) {
+                //超时结束
+                executeThread.interrupt();
+                break;
+            }
+            try {
+                //这里短暂休眠一下
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                System.out.println("执行线程将executeThread打断");
+                break;
+            }
+        }
+        finished = false;
+    }
+}
+```
 
 
 
+```java
+package concurrent;
 
+public class Thread8 {
+
+    public static void main(String[] args) {
+        ThreadService service = new ThreadService();
+        long start = System.currentTimeMillis();
+        service.execute(() -> {
+            while (true) {
+                //do something
+            }
+        });
+        //这里对上面的while任务设置一个超时时间
+        service.shutdown(1000);
+        long end = System.currentTimeMillis();
+        System.out.println("超时停止：" + (end - start));
+    }
+}
+```
+
+这里可以看到我们由主线程调用起`ThreadService`，然后由`ThreadService`的子线程来执行具体的耗时任务。当耗时任务阻塞的时候我们将`ThreadService`打断，此时由于耗时任务是`ThreadService`的守护子线程，在`ThreadService`停止时，耗时任务必然停止。
+
+### 6、同步
+
+一个简单的对台取号场景
+
+```java
+package concurrent;
+
+public class Thread9 {
+
+    public static void main(String[] args) {
+        final TicketWindowRunnable ticketWindow = new TicketWindowRunnable();
+        Thread win1 = new Thread(ticketWindow, "一号窗口");
+        Thread win2 = new Thread(ticketWindow, "二号窗口");
+        Thread win3 = new Thread(ticketWindow, "三号窗口");
+        win1.start();
+        win2.start();
+        win3.start();
+    }
+}
+```
+
+
+
+```java
+package concurrent;
+
+public class TicketWindowRunnable implements Runnable {
+
+    private int index = 1;
+
+    private final static int MAX = 500;
+
+    @Override
+    public void run() {
+        while (true) {
+            if (index > MAX) {
+                break;
+            }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println(Thread.currentThread().getName() + "的号码是： " + (index++));
+        }
+    }
+}
+```
+
+此时会出现最大号码超过500的情况。此时我们其实加一个锁即可解决
+
+```java
+package concurrent;
+
+public class TicketWindowRunnable implements Runnable {
+
+    private int index = 1;
+
+    private final static int MAX = 500;
+
+    private final Object MONITOR = new Object();
+
+    @Override
+    public void run() {
+        while (true) {
+            synchronized (MONITOR) {
+                if (index > MAX) {
+                    break;
+                }
+                try {
+                    Thread.sleep(5);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println(Thread.currentThread().getName() + "的号码是： " + (index++));
+            }
+        }
+    }
+}
+```
+
+这里可以通过命令查看`class`文件的`dump`文件：
+
+```
+E:\software\jdk8u241\bin>javap -c  E:\project\study\java\target\classes\concurrent\TicketWindowRunnable.class
+Compiled from "TicketWindowRunnable.java"
+public class concurrent.TicketWindowRunnable implements java.lang.Runnable {
+  public concurrent.TicketWindowRunnable();
+    Code:
+       0: aload_0
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: aload_0
+       5: iconst_1
+       6: putfield      #2                  // Field index:I
+       9: aload_0
+      10: new           #3                  // class java/lang/Object
+      13: dup
+      14: invokespecial #1                  // Method java/lang/Object."<init>":()V
+      17: putfield      #4                  // Field MONITOR:Ljava/lang/Object;
+      20: return
+
+  public void run();
+    Code:
+       0: aload_0
+       1: getfield      #4                  // Field MONITOR:Ljava/lang/Object;
+       4: dup
+       5: astore_1
+       6: monitorenter
+       7: aload_0
+       8: getfield      #2                  // Field index:I
+      11: sipush        500
+      14: if_icmple     22
+      17: aload_1
+      18: monitorexit
+      19: goto          93
+      22: ldc2_w        #6                  // long 5l
+      25: invokestatic  #8                  // Method java/lang/Thread.sleep:(J)V
+      28: goto          36
+      31: astore_2
+      32: aload_2
+      33: invokevirtual #10                 // Method java/lang/InterruptedException.printStackTrace:()V
+      36: getstatic     #11                 // Field java/lang/System.out:Ljava/io/PrintStream;
+      39: new           #12                 // class java/lang/StringBuilder
+      42: dup
+      43: invokespecial #13                 // Method java/lang/StringBuilder."<init>":()V
+      46: invokestatic  #14                 // Method java/lang/Thread.currentThread:()Ljava/lang/Thread;
+      49: invokevirtual #15                 // Method java/lang/Thread.getName:()Ljava/lang/String;
+      52: invokevirtual #16                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+      55: ldc           #17                 // String 的号码是：
+      57: invokevirtual #16                 // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+      60: aload_0
+      61: dup
+      62: getfield      #2                  // Field index:I
+      65: dup_x1
+      66: iconst_1
+      67: iadd
+      68: putfield      #2                  // Field index:I
+      71: invokevirtual #18                 // Method java/lang/StringBuilder.append:(I)Ljava/lang/StringBuilder;
+      74: invokevirtual #19                 // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+      77: invokevirtual #20                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+      80: aload_1
+      81: monitorexit
+      82: goto          90
+      85: astore_3
+      86: aload_1
+      87: monitorexit
+      88: aload_3
+      89: athrow
+      90: goto          0
+      93: return
+    Exception table:
+       from    to  target type
+          22    28    31   Class java/lang/InterruptedException
+           7    19    85   any
+          22    82    85   any
+          85    88    85   any
+}
+```
+
+这里可以看到`monitorenter`和`monitorexit`分别代表锁获得与释放。
+
+```java
+package concurrent;
+
+public class TicketWindowRunnable implements Runnable {
+
+    private int index = 1;
+
+    private final static int MAX = 500;
+
+    private final Object MONITOR = new Object();
+
+    @Override
+    public synchronized void run() {
+        while (true) {
+            if (index > MAX) {
+                break;
+            }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println(Thread.currentThread().getName() + "的号码是： " + (index++));
+        }
+    }
+}
+```
+
+这里我们同步了方法，此时会发现其中一个线程将事都办完了，其他两个啥也没干。此时要明白此时的同步锁是**`this`**。这种情况下就是因为锁加的范围太大了，导致其他两个线程没事干，可以改小点
+
+```java
+package concurrent;
+
+public class TicketWindowRunnable implements Runnable {
+
+    private int index = 1;
+
+    private final static int MAX = 500;
+
+    @Override
+    public void run() {
+        while (ticket()) {
+        }
+    }
+
+    private synchronized boolean ticket() {
+        if (index > MAX) {
+            return false;
+        }
+        try {
+            Thread.sleep(5);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(Thread.currentThread().getName() + "的号码是： " + (index++));
+        return true;
+    }
+}
+```
 
 
 
