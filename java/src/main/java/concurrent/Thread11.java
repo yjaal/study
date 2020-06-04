@@ -1,10 +1,9 @@
 package concurrent;
 
-public class Thread10 {
-
+public class Thread11 {
 
     public static void main(String[] args) {
-        StaticLock lock = new StaticLock();
+        DeadLock lock = new DeadLock();
         new Thread(() -> {
             lock.m1();
         }, "线程1").start();

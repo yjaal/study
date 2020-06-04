@@ -91,7 +91,7 @@ public class Thread2 {
 }
 ```
 
-此时会发现`count`的值变大了，这个参数就是用来控制栈（一个线程）大小的，让循环可以在达到这个大小之前不抛出栈溢出异常。
+此时会发现`count`的值变大了，这个参数就是用来控制栈（一个线程）大小的，让循环可以在达到这个大小之前不抛出栈溢出异常。**通过这个参数我们也可以明白，操作系统能支持的最大线程数也是有上限的，因为每个线程都需要消耗内存**
 
 
 
@@ -687,15 +687,414 @@ public class TicketWindowRunnable implements Runnable {
 }
 ```
 
+这里是和`synchronized(this)`效果是一样的。那如果加在静态代码块上时锁是谁呢？
+
+```java
+package concurrent;
+
+public class Thread10 {
+
+
+    public static void main(String[] args) {
+        StaticLock lock = new StaticLock();
+        new Thread(() -> {
+            lock.m1();
+        }, "线程1").start();
+
+        new Thread(() -> {
+            lock.m2();
+        }, "线程2").start();
+    }
+
+}
+```
 
 
 
+```java
+package concurrent;
+
+public class StaticLock {
+
+    public synchronized static void m1() {
+        try {
+            System.out.println(Thread.currentThread().getName() + "抢到了锁(m1方法)");
+            Thread.sleep(10_000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public synchronized static void m2() {
+        try {
+            System.out.println(Thread.currentThread().getName() + "抢到了锁(m2方法)");
+            Thread.sleep(10_000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+这里可以很明显看到线程2必须在线程1执行完后才能执行，这里的锁其实是`StaticLock.class`，这里的效果就和`synchronized(StaticLock.class)`一样了。下面看一个死锁的情况
+
+```java
+package concurrent;
+
+public class Thread11 {
+
+    public static void main(String[] args) {
+        DeadLock lock = new DeadLock();
+        new Thread(() ->{
+            lock.m1();
+        }, "线程1").start();
+
+        new Thread(() ->{
+            lock.m2();
+        }, "线程2").start();
+    }
+
+}
+```
 
 
 
+```java
+package concurrent;
+
+public class DeadLock {
+
+    private final Object lock1 = new Object();
+    private final Object lock2 = new Object();
+
+    public void m1() {
+        synchronized (lock1) {
+            System.out.println("当前线程是：" + Thread.currentThread().getName());
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            synchronized (lock2) {
+                System.out.println("当前线程是：" + Thread.currentThread().getName());
+                try {
+                    Thread.sleep(10_000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public void m2() {
+        synchronized (lock2) {
+            System.out.println("当前线程是：" + Thread.currentThread().getName());
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            synchronized (lock1) {
+                System.out.println("当前线程是：" + Thread.currentThread().getName());
+                try {
+                    Thread.sleep(10_000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+}
+```
+
+可以看到当两个线程都需要对方释放锁才能执行时就会发生死锁情况。此时会发现`CPU`和内存都无变化，程序也没有执行，此时可以通过相关命令检查
+
+```
+//查看进程号
+E:\software\jdk8u241\bin>jps
+17812 Launcher
+10776 Jps
+12168 Thread11
+13180
+
+//检查锁
+E:\software\jdk8u241\bin>jstack 12168
+......
+Java stack information for the threads listed above:
+===================================================
+"线程2":
+        at concurrent.DeadLock.m2(DeadLock.java:36)
+        - waiting to lock <0x00000000d6964bc8> (a java.lang.Object)
+        - locked <0x00000000d6964bd8> (a java.lang.Object)
+        at concurrent.Thread11.lambda$main$1(Thread11.java:12)
+        at concurrent.Thread11$$Lambda$2/1896277646.run(Unknown Source)
+        at java.lang.Thread.run(Thread.java:748)
+"线程1":
+        at concurrent.DeadLock.m1(DeadLock.java:17)
+        - waiting to lock <0x00000000d6964bd8> (a java.lang.Object)
+        - locked <0x00000000d6964bc8> (a java.lang.Object)
+        at concurrent.Thread11.lambda$main$0(Thread11.java:8)
+        at concurrent.Thread11$$Lambda$1/2121055098.run(Unknown Source)
+        at java.lang.Thread.run(Thread.java:748)
+
+Found 1 deadlock.
+```
+
+这里可以很明显看到有一个死锁。
 
 
 
+### 7、线程间通信
+
+线程间通信最常见的就是生产者消费者模式
+
+```java
+package concurrent;
+
+public class Thread12 {
+
+    public static void main(String[] args) {
+        ProducerConsumer1 pc = new ProducerConsumer1();
+
+        new Thread(() -> {
+            while (true) {
+                pc.producer();
+            }
+        }, "生产线程").start();
+
+        new Thread(() -> {
+            while (true) {
+                pc.consumer();
+            }
+        }, "消费线程").start();
+    }
+}
+```
+
+这里使用一个标志标量进行通信
+
+```java
+package concurrent;
+
+public class ProducerConsumer1 {
+
+    private int i = 0;
+    final private Object lock = new Object();
+    private volatile boolean isProduced = false;
+
+    public void producer() {
+        synchronized (lock) {
+            if (isProduced) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                System.out.println(Thread.currentThread().getName() + "->" + (i++));
+                isProduced = true;
+                lock.notify();
+            }
+        }
+    }
+
+    public void consumer() {
+        synchronized (lock) {
+            if (!isProduced) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                System.out.println(Thread.currentThread().getName() + "->" + (i));
+                isProduced = false;
+                lock.notify();
+            }
+        }
+    }
+}
+```
+
+但是这种写法在多线程的情况下就会挂住的情况
+
+```java
+package concurrent;
+
+import java.util.stream.Stream;
+
+public class Thread12 {
+
+    public static void main(String[] args) {
+        ProducerConsumer1 pc = new ProducerConsumer1();
+        Stream.of("生产线程1", "生产线程2").forEach(name ->
+            new Thread(() -> {
+                while (true) {
+                    pc.producer();
+                }
+            }, name).start());
+
+        Stream.of("消费线程1", "消费线程2").forEach(name ->
+            new Thread(() -> {
+                while (true) {
+                    pc.consumer();
+                }
+            }, name).start());
+
+    }
+}
+```
+
+这里其实是没有死锁的，主要是由于在调用`notify`的时候只唤醒了一个线程（不确定唤醒的是哪一个），导致最后出现四个线程全部进入到等待的情况。那把`notify`换成`notifyAll`行不行呢？这是不行的，着会造成多次生产或者多次消费。正确的做法如下，就是在条件不满足的时候一直等待
+
+```java
+package concurrent;
+
+import java.util.stream.Stream;
+
+public class Thread13 {
+
+    public static void main(String[] args) {
+        ProducerConsumer1 pc = new ProducerConsumer1();
+        Stream.of("生产线程1", "生产线程2").forEach(name ->
+            new Thread(() -> {
+                while (true) {
+                    pc.producer();
+                }
+            }, name).start());
+
+        Stream.of("消费线程1", "消费线程2").forEach(name ->
+            new Thread(() -> {
+                while (true) {
+                    pc.consumer();
+                }
+            }, name).start());
+    }
+}
+```
 
 
+
+```java
+package concurrent;
+
+public class ProducerConsumer2 {
+
+    private int i = 0;
+    final private Object lock = new Object();
+    private volatile boolean isProduced = false;
+
+    public void producer() {
+        synchronized (lock) {
+            while (isProduced) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println(Thread.currentThread().getName() + "->" + (i++));
+            isProduced = true;
+            lock.notifyAll();
+        }
+    }
+
+    public void consumer() {
+        synchronized (lock) {
+            while (!isProduced) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println(Thread.currentThread().getName() + "->" + (i));
+            isProduced = false;
+            lock.notifyAll();
+        }
+    }
+}
+```
+
+
+
+### 9、sleep 与 wait
+
+* `sleep()` 是 `Thread` 类的静态本地方法；`wait()` 是`Object`类的成员本地方法
+* `sleep() `方法可以在任何地方使用；`wait()` 方法则只能在同步方法或同步代码块中使用，否则抛出异常`Exception in thread "Thread-0" java.lang.IllegalMonitorStateException`
+* `sleep()` 会休眠当前线程指定时间，释放 `CPU` 资源，不释放对象锁，休眠时间到自动苏醒继续执行；`wait() `方法放弃持有的对象锁，进入等待队列，当该对象被调用 `notify() / notifyAll()` 方法后才有机会竞争获取对象锁，进入运行状态
+* `Thread.Sleep(0) `并非是真的要线程挂起`0`毫秒，意义在于这次调用`Thread.Sleep(0)`的当前线程确实的被冻结了一下，让其他线程有机会优先执行。`Thread.Sleep(0) `是你的线程暂时放弃`cpu`，也就是释放一些未用的时间片给其他线程或进程使用，就相当于一个让位动作。(当然这里是在单`CPU`情况下)
+
+
+
+### 10、一个案例
+
+有多个线程，然后每次需要控制最多五个线程同时执行，当五个中其中一个执行完后第六个线程才能加入进来运行。
+
+```java
+package concurrent;
+
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+public class Thread14 {
+
+    private final static LinkedList<Object> CONTROLS = new LinkedList<>();
+    private final static int MAX_THREAD_COUNT = 5;
+
+    public static void main(String[] args) {
+
+        List<Thread> workers = new ArrayList<>();
+        Stream.of("M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10")
+            .map(Thread14::createCaptureThread)
+            .forEach(t -> {
+                t.start();
+                workers.add(t);
+            });
+        workers.forEach(t -> {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+        System.out.println("All of captures work finished");
+    }
+
+    private static Thread createCaptureThread(String name) {
+        return new Thread(() -> {
+            System.out.println("The worker [" + Thread.currentThread().getName() + "] begin capture data.");
+            synchronized (CONTROLS) {
+                while (CONTROLS.size() >= MAX_THREAD_COUNT) {
+                    try {
+                        CONTROLS.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                CONTROLS.addLast(new Object());
+            }
+            System.out.println("The worker [" + Thread.currentThread().getName() + "] is working.");
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            synchronized (CONTROLS) {
+                System.out.println("The worker [" + Thread.currentThread().getName() + "] end capture data.");
+                CONTROLS.removeFirst();
+                CONTROLS.notifyAll();
+            }
+        }, name);
+    }
+}
+```
+
+这里通过一个集合来控制同时运行线程的数量，后面如果使用线程池可能会有更好的方式。这里同时也要注意：一个是这里当一个线程运行完后将其中一个线程移除，上面是直接移除最前面一个，这个可能会有问题，因为第一个可能还没运行完，可以单独创建一个线程类，其中维护一个是否执行完的标志字段，在移除的时候判断下这个标志位；其次这里一次性将所有线程都创建出来了，如果使用线程池，可以这样，将线程池作为锁（类似上面的`CONTROLS`），然后用一个`while`循环检测线程池中活跃的线程，当满足条件的时候像线程池中`submit`。
 
