@@ -91,7 +91,11 @@ public class Thread2 {
 }
 ```
 
-此时会发现`count`的值变大了，这个参数就是用来控制栈（一个线程）大小的，让循环可以在达到这个大小之前不抛出栈溢出异常。**通过这个参数我们也可以明白，操作系统能支持的最大线程数也是有上限的，因为每个线程都需要消耗内存**
+此时会发现`count`的值变大了，这个参数就是用来控制栈（一个线程）大小的，让循环可以在达到这个大小之前不抛出栈溢出异常。**通过这个参数我们也可以明白，操作系统能支持的最大线程数也是有上限的，因为每个线程都需要消耗内存**。
+
+
+
+最后说明一下，这个Runnable和Thread的这种设计其实就是策略设计模式的应用，所有线程都必须集成Runnable接口，实现run方法。
 
 
 
@@ -186,7 +190,7 @@ public class Thread4 {
 }
 ```
 
-如果不使用`join`，那么会交替打印，如果使用`join`，那么会等待t1执行完毕后主线程再执行。
+如果不使用`join`，那么会交替打印，如果使用`join`，那么会等待`t1`执行完毕后主线程再执行。
 
 ```java
 package concurrent;
@@ -1595,4 +1599,46 @@ public class Demo2 {
     }
 } 
 ```
+
+
+
+### 14、ThreadGroup
+
+```java
+package concurrent;
+
+public class Thread21 {
+
+    public static void main(String[] args) {
+        System.out.println(Thread.currentThread().getName());
+        System.out.println(Thread.currentThread().getThreadGroup());
+
+        ThreadGroup tg1 = new ThreadGroup("TG1");
+        Thread t1 = new Thread(tg1, "t1"){
+            @Override
+            public void run() {
+                System.out.println(getThreadGroup().getName());
+                System.out.println(getThreadGroup().getParent().getName());
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        t1.start();
+        ThreadGroup tg2 = new ThreadGroup(tg1, "TG2");
+        System.out.println(tg2.getName());
+        System.out.println(tg2.getParent().getName());
+    }
+}
+```
+
+
+
+### 15、线程池
+
+
+
+
 
