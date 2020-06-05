@@ -1096,5 +1096,503 @@ public class Thread14 {
 }
 ```
 
-这里通过一个集合来控制同时运行线程的数量，后面如果使用线程池可能会有更好的方式。这里同时也要注意：一个是这里当一个线程运行完后将其中一个线程移除，上面是直接移除最前面一个，这个可能会有问题，因为第一个可能还没运行完，可以单独创建一个线程类，其中维护一个是否执行完的标志字段，在移除的时候判断下这个标志位；其次这里一次性将所有线程都创建出来了，如果使用线程池，可以这样，将线程池作为锁（类似上面的`CONTROLS`），然后用一个`while`循环检测线程池中活跃的线程，当满足条件的时候像线程池中`submit`。
+这里通过一个集合来控制同时运行线程的数量，后面如果使用线程池可能会有更好的方式。这里同时也要注意：一个是这里当一个线程运行完后将其中一个线程移除，上面是直接移除最前面一个，这个可能会有问题，因为第一个可能还没运行完，可以单独创建一个线程类，其中维护一个是否执行完的标志字段，在移除的时候判断下这个标志位；其次这里一次性将所有线程都创建出来了，如果使用线程池，可以这样，将线程池作为锁（类似上面的`CONTROLS`），然后用一个`while`循环检测线程池中活跃的线程，当满足条件的时候像线程池中`submit`。下面使用线程池写了一个简单的例子
+
+```java
+package concurrent;
+
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+public class Thread15 {
+
+    private static ThreadPoolExecutor pool = new ThreadPoolExecutor(10, 10, 0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<Runnable>(1024),
+        new ThreadFactoryBuilder().setNameFormat("pool-%d").build(),
+        new ThreadPoolExecutor.AbortPolicy());
+
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10000; i++) {
+            //这里是数据，可能是从数据库中查询出来的
+            List<String> data = Collections.singletonList("线程" + i + "的数据");
+            while (pool.getActiveCount() >= 5) {
+                //wait
+            }
+            synchronized (pool) {
+                if (pool.getActiveCount() < 5) {
+                    pool.submit(() -> dealData(data));
+                }
+            }
+        }
+    }
+
+    public static void dealData(List<String> data) {
+        System.out.println(Thread.currentThread().getName() + " -> begin");
+        data.forEach(System.out::println);
+        try {
+            Thread.sleep(10_000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(Thread.currentThread().getName() + " -> end");
+    }
+}
+```
+
+### 11、自定义锁
+
+```java
+package concurrent;
+
+import java.util.stream.Stream;
+
+public class Thread16 {
+
+    public static void main(String[] args) {
+        final MyLockImpl myLock = new MyLockImpl();
+        Stream.of("线程1", "线程2", "线程3", "线程4").forEach(name ->
+            new Thread(() -> {
+                try {
+                    myLock.lock();
+                    System.out.println(Thread.currentThread().getName() + " have the lock");
+                    work();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    myLock.unlock();
+                }
+            }, name).start());
+/*
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        myLock.unlock();*/
+    }
+
+    private static void work() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName() + " is working");
+        Thread.sleep(10_000);
+    }
+}
+```
+
+
+
+```java
+package concurrent;
+
+import java.util.Collection;
+
+public interface MyLock {
+    void lock() throws InterruptedException;
+    void lock(long mills) throws InterruptedException, TimeoutExceptin;
+    void unlock();
+    Collection<Thread> getBlockedThread();
+    int getBlockedThreadSize();
+    class TimeoutExceptin extends Exception {
+
+        public TimeoutExceptin(String msg) {
+            super(msg);
+        }
+    }
+}
+```
+
+
+
+```java
+package concurrent;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+
+public class MyLockImpl implements MyLock{
+
+    private boolean initValue;
+
+    private Collection<Thread> blockedThreads = new ArrayList<>();
+
+    /**
+     * initValue = true indicated the lock has been got by some thread
+     */
+    public MyLockImpl() {
+        this.initValue = false;
+    }
+
+    @Override
+    public synchronized void lock() throws InterruptedException {
+        //获取到锁之后发现现在被别人占用着，将自己进入等待状态
+        while (initValue) {
+            blockedThreads.add(Thread.currentThread());
+            this.wait();
+        }
+        blockedThreads.remove(Thread.currentThread());
+        this.initValue = true;
+    }
+
+    @Override
+    public void lock(long mills) throws InterruptedException, TimeoutExceptin {
+
+    }
+
+    @Override
+    public synchronized void unlock() {
+        this.initValue = false;
+        System.out.println(Thread.currentThread().getName() + " release the lock monitor");
+        this.notifyAll();
+    }
+
+    @Override
+    public Collection<Thread> getBlockedThread() {
+        //其他方法对此集合操作都是线程安全的，但是我们返回的时候不能让外界对其进行修改
+        return Collections.unmodifiableCollection(blockedThreads);
+    }
+
+    @Override
+    public int getBlockedThreadSize() {
+        return blockedThreads.size();
+    }
+}
+```
+
+这里运行时没有问题的，但是这个锁有点简单了，不能防止别人乱用，这里如果将`Thread16`中注释代码释放开运行就会发现有问题了，这里也就是说其他线程可以将锁释放掉。这里在锁中定义一个变量记住获取到锁的线程，只有这个线程才能释放锁。
+
+```java
+package concurrent;
+......
+
+public class MyLockImpl implements MyLock {
+
+    private boolean initValue;
+
+    private Collection<Thread> blockedThreads = new ArrayList<>();
+
+    private Thread currentThread;
+
+    /**
+     * initValue = true indicated the lock has been got by some thread
+     */
+    public MyLockImpl() {
+        this.initValue = false;
+    }
+
+    @Override
+    public synchronized void lock() throws InterruptedException {
+        //获取到锁之后发现现在被别人占用着，将自己进入等待状态
+        while (initValue) {
+            blockedThreads.add(Thread.currentThread());
+            this.wait();
+        }
+        blockedThreads.remove(Thread.currentThread());
+        this.initValue = true;
+        this.currentThread = Thread.currentThread();
+    }
+
+    @Override
+    public void lock(long mills) throws InterruptedException, TimeoutExceptin {
+
+    }
+
+    @Override
+    public synchronized void unlock() {
+        if (Thread.currentThread() == currentThread) {
+            this.initValue = false;
+            System.out.println(Thread.currentThread().getName() + " release the lock monitor");
+            this.notifyAll();
+        }
+    }
+......
+}
+```
+
+
+
+有时候当线程一直获取不到锁的时候我们希望线程不要继续等待了，这里我们看一个例子
+
+```java
+package concurrent;
+
+public class Thread17 {
+
+    public static void main(String[] args) throws InterruptedException {
+        Thread t1 = new Thread(() -> Thread17.run());
+        t1.start();
+
+        Thread t2 = new Thread(Thread17::run);
+        t2.start();
+
+        t1.interrupt();
+        System.out.println(t1.isInterrupted());
+
+        //休眠2s进行打断
+        Thread.sleep(2_000);
+        t2.interrupt();
+        System.out.println(t2.isInterrupted());
+    }
+
+
+    private static synchronized void run() {
+        System.out.println(Thread.currentThread().getName());
+        while (true) {
+
+        }
+    }
+}
+```
+
+这里会发现虽然我们将`t1`线程进行打断，`t2`线程还是没有获取到锁。同时程序也并没有停下来。这是因为这个方法通过修改了被调用线程的中断状态来告知那个线程, 说它被中断了. 对于非阻塞中的线程, 只是改变了中断状态, 即`Thread.isInterrupted()`将返回`true`; 对于可取消的阻塞状态中的线程, 比如等待在这些函数上的线程, `Thread.sleep(), Object.wait(), Thread.join()`, 这个线程收到中断信号后, 会抛出`InterruptedException`, 同时会把中断状态置回为true.但调用`Thread.interrupted()`会对中断状态进行复位。这里对`synchronized`进行打断说到底只是改了一个标志位，并不能将程序停下来。
+
+下面对之前的自定义锁进行优化
+
+```java
+// MyLockImpl
+@Override
+public synchronized void lock(long mills) throws InterruptedException, TimeoutExceptin {
+    if (mills <= 0) {
+        lock();
+    }
+    long hasRemaining = mills;
+    long endTime = System.currentTimeMillis() + mills;
+    // 如果锁被别的线程拿到了
+    while (initValue) {
+        //这么长时间还没拿到锁，那就超时了
+        if (hasRemaining <= 0) {
+            throw new TimeoutExceptin("Time out");
+        }
+        blockedThreads.add(Thread.currentThread());
+        this.wait(mills);
+        hasRemaining = endTime - System.currentTimeMillis();
+    }
+    blockedThreads.remove(Thread.currentThread());
+    this.initValue = true;
+    this.currentThread = Thread.currentThread();
+}
+```
+
+```java
+package concurrent;
+
+import concurrent.MyLock.TimeoutExceptin;
+import java.util.stream.Stream;
+
+public class Thread16 {
+
+    public static void main(String[] args) {
+        final MyLockImpl myLock = new MyLockImpl();
+        Stream.of("线程1", "线程2", "线程3", "线程4").forEach(name ->
+            new Thread(() -> {
+                try {
+                    myLock.lock(10);
+                    System.out.println(Thread.currentThread().getName() + " have the lock");
+                    work();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (TimeoutExceptin e) {
+                    System.out.println(Thread.currentThread().getName() + "超时了");
+                } finally {
+                    myLock.unlock();
+                }
+            }, name).start());
+    }
+
+    private static void work() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName() + " is working");
+        Thread.sleep(10_000);
+    }
+}
+```
+
+
+
+### 12、给应用设置一个钩子
+
+```java
+package concurrent;
+
+/**
+ * nohup java -cp . Thread18 &
+ * 日志会输出到本地的nohup.out中
+ */
+public class Thread18 {
+    public static void main(String[] args) {
+        int i = 0;
+        while (true) {
+            try {
+                Thread.sleep(1_000);
+                System.out.println("working");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            i++;
+            if (i > 20) {
+                throw new RuntimeException("Error");
+            }
+        }
+    }
+}
+```
+
+这种情况就是只有发生异常的时候我们手动去检测才能知道应用已经挂掉了，现在我们想让程序在挂掉的时候主动通知。这里最好在`Linux`中试验。
+
+```java
+package concurrent;
+
+/**
+ * nohup java -cp . Thread18 &
+ * 日志会输出到本地的nohup.out中
+ */
+public class Thread18 {
+
+    public static void main(String[] args) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("The app will be exit.");
+            notifyAndRelease();
+        }));
+        int i = 0;
+        while (true) {
+            try {
+                Thread.sleep(1_000);
+                System.out.println("working");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            i++;
+            if (i > 20) {
+                throw new RuntimeException("Error");
+            }
+        }
+    }
+
+    private static void notifyAndRelease() {
+        System.out.println("通知或唤醒别的线程...");
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("释放资源...");
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("notifyAndRelease over");
+    }
+}
+```
+
+这里第一个试验是运行程序，我们在程序中添加了计数，计数`20`次就抛异常，此时可以看到程序会执行`notifyAndRelease`方法；第二个是将计数注释掉，我们直接使用`kill [进程号]`杀掉进程，此时我们可以看到还是可以调用`notifyAndRelease`方法。但是如果使用`kill -9 [进程号]`则会直接将程序杀掉，不会执行钩子线程。这里使用了`Runtime`，`Runtime` 类代表着`Java`程序的运行时环境，每个`Java`程序都有一个`Runtime`实例，该类会被自动创建，我们可以通过`Runtime.getRuntime()` 方法来获取当前程序的`Runtime`实例。
+
+参考：`https://blog.csdn.net/sinat_19171485/article/details/47913869`
+
+
+
+### 13、捕获线程异常和调用栈
+
+由于线程的`run`方法是不能抛出异常的，当线程中出现异常的时候，有些异常我们可以直接捕获，但是这里捕获对于外界是不清楚的，而对于运行时异常我们是无法直接捕获的，同时主线程也是无法捕获的。
+
+```java
+package concurrent;
+
+public class Thread19 {
+
+    private final static int A = 10;
+    private final static int B = 0;
+
+    public static void main(String[] args) {
+        Thread t = new Thread(() -> {
+            try {
+                Thread.sleep(100);
+                int result = A / B;
+                System.out.println(result);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "线程1");
+        t.start();
+    }
+}
+```
+
+这里设置了一个异常，发生异常后主线程是无法获取到异常的，要知道异常只能通过日志。
+
+```java
+package concurrent;
+
+public class Thread19 {
+
+    private final static int A = 10;
+    private final static int B = 0;
+
+    public static void main(String[] args) {
+        Thread t = new Thread(() -> {
+            try {
+                Thread.sleep(100);
+                int result = A / B;
+                System.out.println(result);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "线程1");
+
+        t.setUncaughtExceptionHandler((thread, e) -> {
+            System.out.println(e);
+            System.out.println(thread);
+        });
+        t.start();
+    }
+}
+```
+
+同时有时候我们想在日志中打印相关的调用栈信息
+
+```java
+package concurrent;
+
+public class Thread20 {
+
+    public static void main(String[] args) {
+        new Demo1().m1();
+    }
+}
+----------
+package concurrent;
+public class Demo1 {
+
+    public void m1(){
+        new Demo2().m2();
+    }
+}
+----------
+package concurrent;
+
+import java.util.Arrays;
+import java.util.Optional;
+
+public class Demo2 {
+    public void m2() {
+        Arrays.asList(Thread.currentThread().getStackTrace()).stream()
+            .filter(e -> !e.isNativeMethod())
+            .forEach(e -> Optional.of(e.getClassName() + ":" + e.getMethodName() + ":" + e.getLineNumber())
+                .ifPresent(System.out::println));
+    }
+} 
+```
 

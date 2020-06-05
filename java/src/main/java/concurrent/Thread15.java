@@ -18,18 +18,19 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 public class Thread15 {
 
-    private static ThreadPoolExecutor pool = new ThreadPoolExecutor(5, 10, 0L, TimeUnit.MILLISECONDS,
+    private static ThreadPoolExecutor pool = new ThreadPoolExecutor(10, 10, 0L, TimeUnit.MILLISECONDS,
         new LinkedBlockingQueue<Runnable>(1024),
         new ThreadFactoryBuilder().setNameFormat("pool-%d").build(),
         new ThreadPoolExecutor.AbortPolicy());
 
-
     public static void main(String[] args) {
-
         for (int i = 0; i < 10000; i++) {
             //这里是数据，可能是从数据库中查询出来的
             List<String> data = Collections.singletonList("线程" + i + "的数据");
-            while (true) {
+            while (pool.getActiveCount() >= 5) {
+                //wait
+            }
+            synchronized (pool) {
                 if (pool.getActiveCount() < 5) {
                     pool.submit(() -> dealData(data));
                 }
@@ -38,7 +39,14 @@ public class Thread15 {
     }
 
     public static void dealData(List<String> data) {
+        System.out.println(Thread.currentThread().getName() + " -> begin");
         data.forEach(System.out::println);
+        try {
+            Thread.sleep(10_000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(Thread.currentThread().getName() + " -> end");
     }
 }
 
