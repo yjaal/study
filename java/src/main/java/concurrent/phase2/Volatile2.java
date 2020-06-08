@@ -4,7 +4,7 @@ public class Volatile2 {
 
     private static int INIT_VAL = 0;
 
-    private final static int MAX_LIMIT = 50;
+    private final static int MAX_LIMIT = 500;
 
     public static void main(String[] args) {
         new Thread(() -> {
