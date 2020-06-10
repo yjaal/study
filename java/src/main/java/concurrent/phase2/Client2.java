@@ -5,7 +5,15 @@ import java.util.Random;
 public class Client2 {
 
     public static void main(String[] args) {
+        final SharedData data = new SharedData(10);
+        new ReaderWork(data).start();
+        new ReaderWork(data).start();
+        new ReaderWork(data).start();
+        new ReaderWork(data).start();
+        new ReaderWork(data).start();
 
+        new WriterWork(data, "fasdf").start();
+        new WriterWork(data, "fasddsfaf").start();
     }
 
 
@@ -23,6 +31,7 @@ public class Client2 {
                 while (true) {
                     char c = nextChar();
                     data.write(c);
+                    System.out.println(Thread.currentThread().getName() + " writes "+ c);
                     Thread.sleep(random.nextInt(1000));
 
                 }

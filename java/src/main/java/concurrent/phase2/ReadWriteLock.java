@@ -14,12 +14,23 @@ public class ReadWriteLock {
     //当前等待写的线程数量
     private int waitingWriters = 0;
 
+    //是否更偏向与写
+    private boolean preferWriter = true;
+
+    public ReadWriteLock() {
+        this(true);
+    }
+
+    public ReadWriteLock(boolean preferWriter) {
+        this.preferWriter = preferWriter;
+    }
+
     public synchronized void readLock() throws InterruptedException {
         //刚获取到锁的时候肯定是一个等待状态
         this.waitingReaders++;
         try {
             //如果此时有正在写的线程，则等待
-            while (writingWriters > 0) {
+            while (writingWriters > 0 || (preferWriter && waitingWriters > 0)) {
                 this.wait();
             }
             this.readingReaders++;
