@@ -1,5 +1,8 @@
 package concurrent.phase2;
 
+/**
+ * 仆从类是真正干活的
+ */
 class Servant implements ActiveObj {
 
     @Override

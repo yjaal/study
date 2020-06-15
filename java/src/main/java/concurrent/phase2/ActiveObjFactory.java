@@ -14,7 +14,4 @@ public final class ActiveObjFactory {
         schedulerThread.start();
         return proxy;
     }
-
-
-
 }

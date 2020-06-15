@@ -303,7 +303,7 @@ public URLClassLoader(URL[] urls, ClassLoader parent,
                           URLStreamHandlerFactory factory) {}
 ```
 
-显然`ExtClassLoader`的父类为`null`，而`AppClassLoader`的父加载器为`ExtClassLoader`，所有自定义的类加载器其父加载器只会是`AppClassLoader`，注意这里所指的父类并不是Java继承关系中的那种父子关系。
+显然`ExtClassLoader`的父类为`null`，而`AppClassLoader`的父加载器为`ExtClassLoader`，**所有自定义的类加载器其父加载器只会是`AppClassLoader`，注意这里所指的父类并不是Java继承关系中的那种父子关系。**
 
 # 类与类加载器
 
@@ -579,7 +579,7 @@ public class NetClassLoader extends ClassLoader {
 
 ## 热部署类加载器
 
-所谓的热部署就是利用同一个`class`文件不同的类加载器在内存创建出两个不同的`class`对象(关于这点的原因前面已分析过，即利用不同的类加载实例)，由于`JVM`在加载类之前会检测请求的类是否已加载过(即在`loadClass()`方法中调用`findLoadedClass()`方法)，如果被加载过，则直接从缓存获取，不会重新加载。注意同一个类加载器的实例和同一个`class`文件只能被加载器一次，多次加载将报错，因此我们实现的热部署必须让同一个`class`文件可以根据不同的类加载器重复加载，以实现所谓的热部署。实际上前面的实现的`FileClassLoader`和`FileUrlClassLoader`已具备这个功能，但前提是直接调用`findClass()`方法，而不是调用`loadClass()`方法，因为`ClassLoader`中`loadClass()`方法体中调用`findLoadedClass()`方法进行了检测是否已被加载，因此我们直接调用`findClass()`方法就可以绕过这个问题，当然也可以重新`loadClass`方法，但强烈不建议这么干。利用`FileClassLoader`类测试代码如下：
+所谓的热部署就是利用同一个`class`文件不同的类加载器在内存创建出两个不同的`class`对象(关于这点的原因前面已分析过，即利用不同的类加载实例)，由于`JVM`在加载类之前会检测请求的类是否已加载过(即在`loadClass()`方法中调用`findLoadedClass()`方法)，如果被加载过，则直接从缓存获取，不会重新加载。注意同一个类加载器的实例和同一个`class`文件只能被加载器一次，多次加载将报错，因此我们实现的热部署必须让同一个`class`文件可以根据不同的类加载器重复加载，以实现所谓的热部署。实际上前面的实现的`FileClassLoader`和`FileUrlClassLoader`已具备这个功能，但前提是直接调用`findClass()`方法，而不是调用`loadClass()`方法，**因为`ClassLoader`中`loadClass()`方法体中调用`findLoadedClass()`方法进行了检测是否已被加载**，因此我们直接调用`findClass()`方法就可以绕过这个问题，当然也可以重新`loadClass`方法，但强烈不建议这么干。利用`FileClassLoader`类测试代码如下：
 
 ```java
 public static void main(String[] args) throws ClassNotFoundException {
@@ -723,9 +723,9 @@ public class String {
 
 这是什么原因呢？
 
-Java类加载机制为代理模式，先交给其父加载器去加载，如果父加载器加载不了，则由自己加载。我们自定义的类是由系统类加载器进行加载，而它的父加载器为扩展类加载器，扩展类加载器为引导类加载器。我们定义的java.lang.String最先由引导加载器加载，而它负责加载Java核心库，但java.lang.String正是系统中的类，已经被引导加载器记载过了，所以不再加载自定义的java.lang.String。但是系统的java.lang.String没有main方法，所以出现了上面的这个异常。
+`Java`类加载机制为代理模式，先交给其父加载器去加载，如果父加载器加载不了，则由自己加载。我们自定义的类是由系统类加载器进行加载，而它的父加载器为扩展类加载器，扩展类加载器为引导类加载器。我们定义的`java.lang.String`最先由引导加载器加载，而它负责加载Java核心库，但`java.lang.String`正是系统中的类，已经被引导加载器记载过了，所以不再加载自定义的`java.lang.String`。但是系统的`java.lang.String`没有`main`方法，所以出现了上面的这个异常。
 
-另外，自定义包不能以 java.xxx.xxx 开头，这是一种安全机制，，如果以 java 开头，系统直接抛异常。再来看以下两段代码：
+另外，自定义包不能以 `java.xxx.xxx` 开头，这是一种安全机制，，如果以` java` 开头，系统直接抛异常。再来看以下两段代码：
 
 片段1：
 
@@ -752,11 +752,11 @@ public class String{
 }
 ```
 
-对于代码片段1，虽然能加载自定义的com.test.String类，但是main方法中的String对象也是自定义的，不符合main方法的定义方式，故系统抛找不到mian方法。对于代码片段2，在main方法的定义中把String类的路径写全了，明确了，故能正常执行。
+对于代码片段1，虽然能加载自定义的`com.test.String`类，但是`main`方法中的`String`对象也是自定义的，不符合`main`方法的定义方式，故系统抛找不到`mian`方法。对于代码片段2，在`main`方法的定义中把`String`类的路径写全了，明确了，故能正常执行。
 
-这里必须要提到 java 在加载类的过程。Java在加载类时，采用的是代理模式，即，类加载器在尝试自己去查找某个类的字节代码并定义它时，会先代理给其父类加载器，由父类加载器先去尝试加载这个类，以此类推。在说明代理模式背后的原因之前，首先需要说明一下Java虚拟机是如何判定两个java类是相同的。Java虚拟机不仅要看类的全名是否相同，还要看加载此类的类加载器是否一样。只有两者都相同，才认为两个类时相同的。即便是同样的字节代码，被不同的类加载器加载之后所得到的类，也是不同的，如果此时试图对这两个类的对象进行相互赋值，会抛出运行时异常 ClassCastException。
+这里必须要提到` java `在加载类的过程。`Java`在加载类时，采用的是代理模式，即，类加载器在尝试自己去查找某个类的字节代码并定义它时，会先代理给其父类加载器，由父类加载器先去尝试加载这个类，以此类推。在说明代理模式背后的原因之前，首先需要说明一下`Java`虚拟机是如何判定两个`java`类是相同的。`Java`虚拟机不仅要看类的全名是否相同，还要看加载此类的类加载器是否一样。只有两者都相同，才认为两个类时相同的。即便是同样的字节代码，被不同的类加载器加载之后所得到的类，也是不同的，如果此时试图对这两个类的对象进行相互赋值，会抛出运行时异常 `ClassCastException`。
 
-代理模式是为了保证Java核心库的类型安全，所有的Java应用都至少需要引用 java.lang.Object类，也就是说在运行时，java.lang.Object 这个类需要被加载到Java虚拟机中。如果这个过程由Java应用自己的类加载器来完成的话，很可能就存在多个版本的 java.lang.Object 类，可是这些类之间是不兼容的。通过代理模式，对于Java核心库的类的加载工作由引导类加载器统一完成，保证了 Java 应用所使用的都是同一个版本的Java核心库的类，是相互兼容的。
+代理模式是为了保证`Java`核心库的类型安全，所有的`Java`应用都至少需要引用` java.lang.Object`类，也就是说在运行时，`java.lang.Object `这个类需要被加载到`Java`虚拟机中。如果这个过程由`Java`应用自己的类加载器来完成的话，很可能就存在多个版本的 `java.lang.Object` 类，可是这些类之间是不兼容的。通过代理模式，对于`Java`核心库的类的加载工作由引导类加载器统一完成，保证了 `Java` 应用所使用的都是同一个版本的`Java`核心库的类，是相互兼容的。
 
 
 
