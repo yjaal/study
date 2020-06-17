@@ -1,5 +1,6 @@
 package concurrent.phase3;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -7,9 +8,10 @@ import sun.misc.Unsafe;
 
 public class Demo03 {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws Exception {
         ExecutorService service = Executors.newFixedThreadPool(1000);
-        Counter counter = new StupidCounter();
+//        Counter counter = new StupidCounter();
+        Counter counter = new CasCounter();
         long start = System.currentTimeMillis();
         for (int i = 0; i < 1000; i++) {
             service.submit(new CounterRunnable(counter, 10000));
@@ -34,16 +36,29 @@ public class Demo03 {
 
         private Unsafe unsafe;
 
+        private static Unsafe getUnsafe() {
+            try {
+                Field f = Unsafe.class.getDeclaredField("theUnsafe");
+                f.setAccessible(true);
+                return (Unsafe) f.get(null);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         private long offset;
 
-        public CasCounter() throws NoSuchFieldException {
-            this.unsafe = Unsafe.getUnsafe();
+        public CasCounter() throws Exception {
+            this.unsafe = getUnsafe();
             this.offset = unsafe.objectFieldOffset(CasCounter.class.getDeclaredField("counter"));
         }
 
         @Override
         public void increment() {
-            counter++;
+            long current = counter;
+            while (!unsafe.compareAndSwapLong(this, offset, current, current + 1)) {
+                current = counter;
+            }
         }
 
         @Override
