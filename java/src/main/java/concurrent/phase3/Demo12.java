@@ -15,9 +15,6 @@ public class Demo12 {
 
     public static void main(String[] args) {
 
-        r.lock();
-
-
         new Thread(() -> {
             for (int i = 0; i < 100; i++) {
                 setData(i + "", i + "");
