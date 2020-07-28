@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 
-public class Demo13 {
+public class Demo14 {
 
     private final static StampedLock lock = new StampedLock();
     private final static List<Long> data = new ArrayList<>();
@@ -28,10 +28,12 @@ public class Demo13 {
             }
         };
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 8; i++) {
             service.submit(readTask);
         }
-        service.submit(writeTask);
+        for (int i = 0; i < 1; i++) {
+            service.submit(writeTask);
+        }
     }
 
     private static void write() {
@@ -49,17 +51,20 @@ public class Demo13 {
     }
 
     private static void read() {
-        long stamped = -1;
-        try {
-            stamped = lock.readLock();
-            Optional.of(
-                data.stream().map(String::valueOf).collect(Collectors.joining("#", "R-", ""))
-            ).ifPresent(System.out::println);
-            TimeUnit.SECONDS.sleep(1);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            lock.unlock(stamped);
+        long stamped = lock.tryOptimisticRead();
+        // 若校验不通过，表明有写锁，则去获取悲观读锁
+        if (!lock.validate(stamped)) {
+            try {
+                stamped = lock.readLock();
+                Optional.of(
+                    data.stream().map(String::valueOf).collect(Collectors.joining("#", "R-", ""))
+                ).ifPresent(System.out::println);
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock(stamped);
+            }
         }
     }
 }
