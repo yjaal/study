@@ -14,6 +14,7 @@ public class Demo16 {
     private final static AtomicInteger SUM = new AtomicInteger(0);
 
     public static void main(String[] args) {
+
         final ForkJoinPool pool = new ForkJoinPool();
         pool.submit(new CalculatedRecursiveAction(0, 10));
         try {
