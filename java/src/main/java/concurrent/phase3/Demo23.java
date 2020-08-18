@@ -1,9 +1,12 @@
 package concurrent.phase3;
 
+import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class Demo23 {
@@ -12,8 +15,27 @@ public class Demo23 {
         test4();
     }
 
-    public static void test4() {
+    public static void test4() throws InterruptedException {
+        // return new ForkJoinPool(Runtime.getRuntime().availableProcessors(),
+        //             ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true);
         ExecutorService pool = Executors.newWorkStealingPool();
+        List<Callable<String>> callableList = IntStream.range(0, 20).boxed().map(i -> (Callable<String>) () -> {
+            System.out.println("Thread: " + Thread.currentThread().getName());
+            TimeUnit.SECONDS.sleep(100);
+            return "task->" + i;
+        }).collect(Collectors.toList());
+
+        // 利用 Java 8 的流来处理 invokeAll 调用返回的所有 Future
+        // 批量提交可调用的另一种方法是 invokeAny()，它与 invokeAll() 略有不同。 该方法不会返回所有的 Future 对象，它只返回第一个执行完毕任务的结果。
+        pool.invokeAll(callableList).stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).forEach(System.out::println);
+
+        pool.shutdown();
     }
 
     public static void test3() {
