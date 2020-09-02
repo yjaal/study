@@ -1,11 +1,13 @@
 package concurrent.phase3;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -15,7 +17,8 @@ public class Demo27 {
 
     public static void main(String[] args) throws Exception {
 //        testInvokeAny();
-        testTimeout();
+//        testTimeout();
+        testInvokeAll();;
     }
 
     private static void testInvokeAny() throws ExecutionException, InterruptedException {
@@ -66,5 +69,9 @@ public class Demo27 {
             }
             return null;
         }).forEach(System.out::println);
+
+        BlockingQueue<Runnable> queue = ((ThreadPoolExecutor) pool).getQueue();
+        queue.add(() -> System.out.println("this is a runnable thread"));
+        pool.shutdown();
     }
 }
