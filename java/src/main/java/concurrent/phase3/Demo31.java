@@ -33,7 +33,4 @@ public class Demo31 {
         }), System.out::println);
     }
 
-    private static void test1() {
-
-    }
 }
