@@ -1096,19 +1096,259 @@ CPU：取决于数据的频繁性、数据的转发复杂性
 
 # 服务器传输稳定性优化
 
-消息不完整与消息粘包
+## 消息不完整与消息粘包
 
-复现数据传输异常现象
+之前发送和接收消息都是通过对字符串进行解析完成的，而传输结束也是通过解析结束符来判断的，这样会导致解析成本比较高。
 
-传输分析-如何有序的混传数据
+**消息粘包**
 
-传输分析-借鉴学习HTTP
+* TCP本质山并不会发生数据层面的粘包
 
-构建有序消息体-调度接口定义
+  TCP本质上是一个包一个包的发送，并不会发生粘包。这里的粘包主要是针对上层应用的
+
+* TCP的发送方与接收方一定会确保数据是以一种有序的方式到达客户端，并且会确保数据包的完整性
+
+* UDP不保证消息完整性，所以往往会发生丢包等情况；TCP具有顺序性和完整性
+
+* 常规所说的Socket粘包，并非数据传输层粘包，而是指数据处理的逻辑层面上发生的粘包
+
+* Mina、Netty等框架从根本上来说也是未了解决粘包而设计的高并发库
+
+![11](./assert/11.png)
+
+理论上我们发送三条消息，然后依次接收到三条消息，但是实际情况确实前面两条消息有可能同时到达。
+
+
+
+**消息不完整**
+
+* 从数据的传输层来讲TCP也不会发生数据丢失不全等情况
+* 一旦出现一定是TCP停止运行终止之时
+* “数据不完整”依然针对的是数据的逻辑接收层面
+* 在屋里传输层面来将数据一定是能安全的完整的送达另一端，但另一端可能缓冲区不够或者数据处理上不够完整导致数据只能读取一部分数据，这种情况称为“数据不完整”、“数据丢包”等。
+
+![12](./assert/12.png)
+
+这里有两条消息M1、M2，但是M2比较大，被分层了两部分，在读取的时候可能M1和M2的一部分被读取下来，或者如下面的情况，这种就是消息不完整。
+
+
+
+## 复现数据传输异常现象
+
+**消息到达提醒重复出发（读消息时未设置取消监听）**
+
+这里在测试的时候将
+
+```java
+// IoSelectorProvider.handleSelection
+key.interestOps(key.readyOps() & ~opRead);
+```
+
+注释，也就是在处理消息的时候不将监听标志修改，此时将继续监听，同时在实际读取数据的时候添加延迟
+
+```java
+// SocketChannelAdapter.inputCallback
+private boolean runed;
+
+private final HandleInputCallback inputCallback = new HandleInputCallback() {
+    @Override
+    protected void canProviderInput() {
+        if (isClosed.get()) {
+            return;
+        }
+
+        if (runed) {
+            return;
+        }
+        runed = true;
+        try {
+            // 这里延迟5s进行实际读取
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+```
+
+由于没有改变读写标志，这里我们在下面类方法中加了一个打印标志
+
+```java
+// IoSelectorProvider.startRead
+for (SelectionKey selectionKey : selectionKeys) {
+    if (selectionKey.isValid()) {
+        handleSelection(selectionKey, SelectionKey.OP_READ, inputCallbackMap, inputHandlePool);
+    }
+}
+System.out.println("有数据需要读取：" + selectionKeys.size());
+selectionKeys.clear();
+```
+
+
+
+此时启动服务端和客户端，然后从客户端发送一条数据，在延迟期间selector一直处于可读状态（由于没有修改key标识），于是会一直读取，直到延迟时间过了实际处理了数据才会停下来。
+
+![13](./assert/13.png)
+
+
+
+
+
+**多消息粘包**
+
+这里只要客户端读取输入向服务端发消息的时候多次重复发送
+
+```java
+// Client.write
+private static void write(TCPClient tcpClient) throws IOException {
+    // 构建键盘输入流
+    InputStream in = System.in;
+    BufferedReader input = new BufferedReader(new InputStreamReader(in));
+    do {
+        // 键盘读取一行
+        String str = input.readLine();
+        // 发送到服务器
+        tcpClient.send(str);
+        tcpClient.send(str);
+        tcpClient.send(str);
+        tcpClient.send(str);
+
+        if ("00bye00".equalsIgnoreCase(str)) {
+            break;
+        }
+    } while (true);
+}
+```
+
+同时在服务端
+
+```java
+// TCPServer.onNewMsgArrived
+public void onNewMsgArrived(final ClientHandler handler, final String msg) {
+    // 这里在试验的时候要注意，win中的换行符是\r\n，而mac中的换行符是\r
+    System.out.println(msg.replace("\r\n", "-----"));
+```
+
+这里将之前的换行符（消息分隔符）替换，然后打印出来就可以得到效果
+
+
+
+**单消息不完整**
+
+这里直接将每次接收数据的缓存大小改小，然后发送一个较大的数据即可
+
+```java
+public class IoArgs {
+    private byte[] byteBuffer = new byte[4];
+```
+
+我们会发现会分几次接收客户端的数据，然后打印，同时可能会丢失一些数据（因为理论上我们将最后一个字符当作换行符丢弃了）。
+
+
+
+## 如何有序的混传数据
+
+**数据传输加上开始结束标记**
+
+比如之前我们以换行符作为两条消息之间的间隔
+
+![14](./assert/14.png)
+
+
+
+**数据传输使用固定头部的方案**
+
+比如在每条数据前面加上特殊的标识符，以确保进行分割
+
+![15](./assert/15.png)
+
+服务端会先读取前面四个字节，刚好是一个`int`长度，而这个值可以存后面实际数据的长度。
+
+
+
+
+
+**混合方案：固定头部、数据加密、数据描述**
+
+
+
+这里不论是什么方案都会消耗资源，因为不清楚什么每条消息都需要进行字节校验，因为并不知道在什么时候校验，这里涉及到字节的搜索。一般提倡第二种方案。
+
+
+
+## 借鉴学习HTTP
+
+**HTTP如何识别一个请求**
+
+在1.X版本中每发一条消息都会建立一次socket连接，而在2.0后不需要每次都建立连接
+
+**HTTP如何读取请求头，请求头协议是怎样的**
+
+
+
+**HTTP如何接受数据包体**
+
+
+
+**当数据为文件时，HTTP如何判断文件已接收到底了**
+
+
+
+**HTTP 1.X**
+
+![16](./assert/16.png)
+
+这里前面两段其实就是一个对消息包的描述
+
+![17](./assert/17.png)
+
+
+
+**HTTP 2.X**
+
+![18](./assert/18.png)
+
+这里涉及到一个分帧的概念，比如上面将头分为了一帧，而数据部分可能会分为很多帧
+
+![19](./assert/19.png)
+
+![20](./assert/20.png)
+
+这里可以看到建立一个连接，就能发送多条数据。
+
+![21](./assert/21.png)
+
+这里就可以借鉴，可以标识长度、加密、加密类型。
+
+
+
+## 构建有序消息体-调度接口定义
+
+之前我们使用`IoArgs`类作为缓存接收数据，这里我们定义一个上面协议中的包的概念。
+
+
+
+
+
+
 
 构建有序消息体-基本发送调度实现
 
 构建有序消息体-基本接收调度实现
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
